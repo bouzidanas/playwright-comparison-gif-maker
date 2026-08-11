@@ -12,6 +12,8 @@ export interface CaptureRegion {
 
 export type ComparisonLayout = 'auto' | 'horizontal' | 'vertical';
 export type ResolvedComparisonLayout = Exclude<ComparisonLayout, 'auto'>;
+export type ResizeAnchor = 'left' | 'right' | 'both';
+export type LabelAlignment = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export type ScenarioAction =
 	| { type: 'goto'; path?: string; holdAfterMs?: number }
@@ -20,7 +22,7 @@ export type ScenarioAction =
 	| { type: 'fill'; locator: string; value: string; holdAfterMs?: number }
 	| { type: 'press'; locator: string; key: string; holdAfterMs?: number }
 	| { type: 'scroll'; locator?: string; deltaX?: number; deltaY: number; holdAfterMs?: number }
-	| { type: 'resize'; width: number; height: number; durationMs?: number; holdAfterMs?: number }
+	| { type: 'resize'; width: number; height: number; anchor?: ResizeAnchor; durationMs?: number; holdAfterMs?: number }
 	| { type: 'zoom'; locator?: string; scale?: number; durationMs?: number; holdAfterMs?: number }
 	| { type: 'waitFor'; locator: string; state?: 'attached' | 'detached' | 'visible' | 'hidden'; timeoutMs?: number; holdAfterMs?: number }
 	| { type: 'hold'; durationMs: number };
@@ -38,6 +40,9 @@ export interface ComparisonRequest {
 	installCommand?: string;
 	beforeLabel?: string;
 	afterLabel?: string;
+	beforeLabelAlignment?: LabelAlignment;
+	afterLabelAlignment?: LabelAlignment;
+	borderColor?: string;
 	focusLocator?: string;
 	focusPadding?: number;
 	layout?: ComparisonLayout;
@@ -59,11 +64,20 @@ export interface ZoomCue {
 	durationMs: number;
 }
 
+export interface ResizeCue {
+	actionIndex: number;
+	from: Viewport;
+	to: Viewport;
+	anchor: ResizeAnchor;
+	durationMs: number;
+}
+
 export interface CaptureResult {
 	videoPath: string;
 	timings: ActionTiming[];
 	replayOffsetMs: number;
 	recordingSize: Viewport;
+	resizeCues: ResizeCue[];
 	zoomCues: ZoomCue[];
 	region?: CaptureRegion;
 }
@@ -107,6 +121,17 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	if (request.layout && !['auto', 'horizontal', 'vertical'].includes(request.layout)) {
 		throw new Error(`Unsupported comparison layout "${request.layout}".`);
 	}
+	for (const [name, alignment] of [
+		['Before label', request.beforeLabelAlignment],
+		['After label', request.afterLabelAlignment],
+	] as const) {
+		if (alignment && !['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(alignment)) {
+			throw new Error(`${name} alignment "${alignment}" is unsupported.`);
+		}
+	}
+	if (request.borderColor && !/^#[0-9a-f]{6}$/i.test(request.borderColor)) {
+		throw new Error('Border color must be a six-digit hex color such as #30363d.');
+	}
 
 	const viewport = request.viewport ?? { width: 1280, height: 720 };
 	validateViewport(viewport, 'The viewport');
@@ -149,6 +174,9 @@ function validateAction(action: ScenarioAction, index: number): void {
 			return;
 		case 'resize':
 			validateViewport(action, `Scenario action ${index + 1} resize`);
+			if (action.anchor && !['left', 'right', 'both'].includes(action.anchor)) {
+				invalid(`has unsupported anchor "${action.anchor}".`);
+			}
 			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
 				invalid('requires durationMs between 0 and 10000.');
 			}

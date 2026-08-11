@@ -29,14 +29,15 @@ suite('Comparison runner end to end', function () {
 				readyUrl: 'http://127.0.0.1:{port}',
 				beforeLabel: 'Before',
 				afterLabel: 'After',
+				beforeLabelAlignment: 'bottom-left',
+				afterLabelAlignment: 'bottom-right',
+				borderColor: '#2f81f7',
 				viewport: { width: 640, height: 480 },
-				focusLocator: '#toolbar',
-				focusPadding: 8,
 				scenario: {
 					name: 'Responsive panel fix',
 					actions: [
 						{ type: 'hold', durationMs: 300 },
-						{ type: 'resize', width: 360, height: 480, durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 360, height: 480, anchor: 'both', durationMs: 500, holdAfterMs: 300 },
 						{ type: 'resize', width: 640, height: 480, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'zoom', locator: 'role=button[name="Toggle panel"]', scale: 1.8, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'click', locator: 'role=button[name="Toggle panel"]', holdAfterMs: 700 },
@@ -53,7 +54,7 @@ suite('Comparison runner end to end', function () {
 			);
 
 			assert.strictEqual(result.candidateDirty, true);
-			assert.strictEqual(result.layout, 'vertical');
+			assert.strictEqual(result.layout, 'horizontal');
 			assert.match(result.beforeLabel, /^Before \([0-9a-f]{8}\)$/);
 			assert.match(result.afterLabel, /^After \([0-9a-f]{8}\)$/);
 			assert.ok((await stat(result.gifPath)).size > 1_000);

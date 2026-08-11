@@ -6,6 +6,8 @@ import type {
 	ActionTiming,
 	CaptureRegion,
 	ComparisonLayout,
+	LabelAlignment,
+	ResizeCue,
 	ResolvedComparisonLayout,
 	Viewport,
 	ZoomCue,
@@ -34,8 +36,13 @@ export async function renderComparisonGif(
 	afterReplayOffsetMs: number,
 	beforeRecordingSize: Viewport,
 	afterRecordingSize: Viewport,
+	beforeResizeCues: ResizeCue[],
+	afterResizeCues: ResizeCue[],
 	beforeZoomCues: ZoomCue[],
 	afterZoomCues: ZoomCue[],
+	borderColor: string,
+	beforeLabelAlignment: LabelAlignment,
+	afterLabelAlignment: LabelAlignment,
 	layoutPreference: ComparisonLayout,
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
@@ -59,8 +66,13 @@ export async function renderComparisonGif(
 		afterReplayOffsetMs,
 		beforeRecordingSize,
 		afterRecordingSize,
+		beforeResizeCues,
+		afterResizeCues,
 		beforeZoomCues,
 		afterZoomCues,
+		borderColor,
+		beforeLabelAlignment,
+		afterLabelAlignment,
 		layout,
 	);
 	const args = [
@@ -80,9 +92,13 @@ export async function renderComparisonGif(
 	];
 
 	await new Promise<void>((resolve, reject) => {
+		let encoderOutput = '';
 		const child = spawn(executablePath, args, { windowsHide: true });
 		child.stdout.on('data', data => onOutput(String(data)));
-		child.stderr.on('data', data => onOutput(String(data)));
+		child.stderr.on('data', data => {
+			encoderOutput = `${encoderOutput}${String(data)}`.slice(-4_000);
+			onOutput(String(data));
+		});
 		const cancellation = token.onCancellationRequested(() => child.kill('SIGTERM'));
 		child.once('error', error => {
 			cancellation.dispose();
@@ -95,7 +111,7 @@ export async function renderComparisonGif(
 			} else if (code === 0) {
 				resolve();
 			} else {
-				reject(new Error(`FFmpeg failed with exit code ${code}. See the PR UI Compare output for details.`));
+				reject(new Error(`FFmpeg failed with exit code ${code}.\n${encoderOutput.trim()}`));
 			}
 		});
 	});
@@ -129,8 +145,13 @@ function createFilter(
 	afterReplayOffsetMs: number,
 	beforeRecordingSize: Viewport,
 	afterRecordingSize: Viewport,
+	beforeResizeCues: ResizeCue[],
+	afterResizeCues: ResizeCue[],
 	beforeZoomCues: ZoomCue[],
 	afterZoomCues: ZoomCue[],
+	borderColor: string,
+	beforeLabelAlignment: LabelAlignment,
+	afterLabelAlignment: LabelAlignment,
 	layout: ResolvedComparisonLayout,
 ): string {
 	const targetDurations = resolveSynchronizedDurations(beforeTimings, afterTimings);
@@ -143,7 +164,9 @@ function createFilter(
 		beforeRegion,
 		beforeRecordingSize,
 		layout,
+		beforeResizeCues,
 		beforeZoomCues,
+		borderColor,
 	);
 	const afterTimeline = synchronizeTimeline(
 		1,
@@ -154,26 +177,28 @@ function createFilter(
 		afterRegion,
 		afterRecordingSize,
 		layout,
+		afterResizeCues,
 		afterZoomCues,
+		borderColor,
 	);
 	const leftLabel = escapeDrawText(beforeLabel);
 	const rightLabel = escapeDrawText(afterLabel);
-	const text = (label: string, corner: 'left' | 'right') => [
+	const text = (label: string, alignment: LabelAlignment) => [
 		`drawtext=text='${label}'`,
 		'fontcolor=white',
 		'fontsize=18',
-		`x=${corner === 'left' ? '14' : 'w-text_w-14'}`,
-		'y=14',
+		`x=${alignment.endsWith('left') ? '14' : 'w-text_w-14'}`,
+		`y=${alignment.startsWith('top') ? '14' : 'h-text_h-14'}`,
 		'box=1',
 		'boxcolor=black@0.72',
 		'boxborderw=7',
 	].join(':');
-	const border = 'pad=iw+6:ih+6:3:3:color=white';
+	const border = `pad=iw+6:ih+6:3:3:color=${ffmpegColor(borderColor)}`;
 	return [
 		...beforeTimeline.filters,
 		...afterTimeline.filters,
-		`${beforeTimeline.output}${text(leftLabel, 'left')},${border}[beforePane]`,
-		`${afterTimeline.output}${text(rightLabel, 'right')},${border}[afterPane]`,
+		`${beforeTimeline.output}${text(leftLabel, beforeLabelAlignment)},${border}[beforePane]`,
+		`${afterTimeline.output}${text(rightLabel, afterLabelAlignment)},${border}[afterPane]`,
 		'[beforePane]split=2[beforeForStack][beforeIndividual]',
 		'[afterPane]split=2[afterForStack][afterIndividual]',
 		layout === 'vertical'
@@ -213,11 +238,16 @@ function synchronizeTimeline(
 	region: CaptureRegion | undefined,
 	recordingSize: Viewport,
 	layout: ResolvedComparisonLayout,
+	resizeCues: ResizeCue[],
 	zoomCues: ZoomCue[],
+	backgroundColor: string,
 ): { filters: string[]; output: string } {
 	const filters: string[] = [];
 	const geometry = resolvePaneGeometry(region, recordingSize, layout);
+	const resizeCueMap = new Map(resizeCues.map(cue => [cue.actionIndex, cue]));
 	const cues = new Map(zoomCues.map(cue => [cue.actionIndex, cue]));
+	let viewport = resizeCues[0]?.from ?? recordingSize;
+	let resizeAnchor: ResizeCue['anchor'] = 'right';
 	let camera: CameraState = {
 		scale: 1,
 		centerX: geometry.output.width / 2,
@@ -233,6 +263,20 @@ function synchronizeTimeline(
 		const start = seconds(replayOffsetMs + timing.startedAtMs);
 		const end = seconds(replayOffsetMs + timing.endedAtMs);
 		const rate = targetDurations[index] / duration(timing);
+		const resizeCue = resizeCueMap.get(index);
+		const resizeTransitionMs = resizeCue
+			? Math.min(resizeCue.durationMs, duration(timing)) * rate
+			: 0;
+		const placementFilter = region
+			? ''
+			: createResizePlacementFilter(
+				viewport,
+				resizeCue?.to ?? viewport,
+				resizeCue?.anchor ?? resizeAnchor,
+				resizeTransitionMs,
+				recordingSize,
+				backgroundColor,
+			);
 		const cue = cues.get(index);
 		const nextCamera = cue ? resolveCameraState(cue, geometry) : camera;
 		const transitionMs = cue
@@ -242,17 +286,46 @@ function synchronizeTimeline(
 		filters.push([
 			`${source}trim=start=${start}:end=${end}`,
 			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
-			`${crop(region)}fps=12`,
+			'fps=12',
+			placementFilter,
+			crop(region),
 			`scale=${geometry.output.width}:${geometry.output.height}:flags=lanczos`,
 			'setsar=1',
 			cameraFilter,
 		].filter(Boolean).join(',') + segment);
+		if (resizeCue) {
+			viewport = resizeCue.to;
+			resizeAnchor = resizeCue.anchor;
+		}
 		camera = nextCamera;
 		return segment;
 	});
 	const output = `[${prefix}Timeline]`;
 	filters.push(`${segments.join('')}concat=n=${segments.length}:v=1:a=0${output}`);
 	return { filters, output };
+}
+
+function createResizePlacementFilter(
+	start: Viewport,
+	end: Viewport,
+	anchor: ResizeCue['anchor'],
+	transitionMs: number,
+	recordingSize: Viewport,
+	backgroundColor: string,
+): string {
+	if (anchor === 'right' && start.width === recordingSize.width && end.width === recordingSize.width) {
+		return '';
+	}
+	const frames = Math.max(1, Math.round(transitionMs * 12 / 1000));
+	const progress = frames <= 1 ? '1' : `min(1,n/${frames - 1})`;
+	const eased = `(0.5-0.5*cos(PI*${progress}))`;
+	const width = interpolate(start.width, end.width, eased);
+	const slack = `${recordingSize.width}-(${width})`;
+	const offset = anchor === 'left' ? slack : anchor === 'both' ? `(${slack})/2` : '0';
+	return [
+		`pad=${recordingSize.width * 2}:${recordingSize.height}:${recordingSize.width}:0:color=${ffmpegColor(backgroundColor)}`,
+		`crop=${recordingSize.width}:${recordingSize.height}:x='${recordingSize.width}-(${offset})':y=0`,
+	].join(',');
 }
 
 interface CameraState {
@@ -350,7 +423,11 @@ function crop(region: CaptureRegion | undefined): string {
 	if (!region) {
 		return '';
 	}
-	return `crop=${Math.round(region.width)}:${Math.round(region.height)}:${Math.round(region.x)}:${Math.round(region.y)},`;
+	return `crop=${Math.round(region.width)}:${Math.round(region.height)}:${Math.round(region.x)}:${Math.round(region.y)}`;
+}
+
+function ffmpegColor(value: string): string {
+	return `0x${value.slice(1)}`;
 }
 
 function escapeDrawText(value: string): string {

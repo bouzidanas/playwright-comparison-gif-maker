@@ -24,13 +24,22 @@ suite('Comparison renderer', function () {
 			const zoomTarget = { x: 220, y: 30, width: 120, height: 40 };
 			const beforeTimings = [
 				{ index: 0, type: 'zoom' as const, startedAtMs: 0, endedAtMs: 300 },
-				{ index: 1, type: 'hold' as const, startedAtMs: 300, endedAtMs: 700 },
+				{ index: 1, type: 'resize' as const, startedAtMs: 300, endedAtMs: 700 },
 				{ index: 2, type: 'zoom' as const, startedAtMs: 700, endedAtMs: 1_000 },
 			];
 			const afterTimings = [
 				{ index: 0, type: 'zoom' as const, startedAtMs: 0, endedAtMs: 400 },
-				{ index: 1, type: 'hold' as const, startedAtMs: 400, endedAtMs: 600 },
+				{ index: 1, type: 'resize' as const, startedAtMs: 400, endedAtMs: 600 },
 				{ index: 2, type: 'zoom' as const, startedAtMs: 600, endedAtMs: 1_000 },
+			];
+			const resizeCues = [
+				{
+					actionIndex: 1,
+					from: { width: 640, height: 480 },
+					to: { width: 360, height: 480 },
+					anchor: 'both' as const,
+					durationMs: 300,
+				},
 			];
 			const zoomCues = [
 				{ actionIndex: 0, target: zoomTarget, scale: 2, durationMs: 300 },
@@ -51,8 +60,13 @@ suite('Comparison renderer', function () {
 				0,
 				{ width: 640, height: 480 },
 				{ width: 640, height: 480 },
+				resizeCues,
+				resizeCues,
 				zoomCues,
 				zoomCues,
+				'#2f81f7',
+				'bottom-left',
+				'bottom-right',
 				'vertical',
 				new vscode.CancellationTokenSource().token,
 				() => undefined,
@@ -85,6 +99,56 @@ suite('Comparison renderer', function () {
 				{ index: 1, type: 'hold', startedAtMs: 500, endedAtMs: 900 },
 			],
 		), [500, 750]);
+	});
+
+	test('keeps a shrinking page centered in the fixed canvas', async () => {
+		if (!ffmpegPath) {
+			assert.fail('No FFmpeg binary is available for renderer tests.');
+		}
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-anchor-'));
+		try {
+			const before = path.join(directory, 'before.mp4');
+			const after = path.join(directory, 'after.mp4');
+			await createVideo(ffmpegPath, before, '0xc84b31');
+			await createVideo(ffmpegPath, after, '0x2e7d5b');
+			const timings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
+			const resizeCues = [{
+				actionIndex: 0,
+				from: { width: 640, height: 480 },
+				to: { width: 360, height: 480 },
+				anchor: 'both' as const,
+				durationMs: 800,
+			}];
+			const rendered = await renderComparisonGif(
+				before,
+				after,
+				directory,
+				'Before',
+				'After',
+				{ width: 640, height: 480 },
+				undefined,
+				undefined,
+				timings,
+				timings,
+				0,
+				0,
+				{ width: 640, height: 480 },
+				{ width: 640, height: 480 },
+				resizeCues,
+				resizeCues,
+				[],
+				[],
+				'#30363d',
+				'top-left',
+				'top-right',
+				'horizontal',
+				new vscode.CancellationTokenSource().token,
+				() => undefined,
+			);
+			assert.ok((await stat(rendered.comparisonGifPath)).size > 1_000);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 });
 

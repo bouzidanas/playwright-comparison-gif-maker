@@ -59,6 +59,8 @@ Zoom is a recording-camera effect and does not change page layout, browser zoom,
 
 Camera movement uses cosine easing for a smooth arrival and departure. Moderate scales and short holds help viewers orient without making the comparison feel busy.
 
+`borderColor` accepts a six-digit hex color and defaults to GitHub dark border `#30363d`. It colors each pane frame, the divider, and unused canvas exposed by anchored resizing. `beforeLabelAlignment` and `afterLabelAlignment` accept `top-left`, `top-right`, `bottom-left`, or `bottom-right`. Their defaults are `top-left` for Before and `top-right` for After.
+
 Use resize actions whenever viewport dimensions are part of the behavior being demonstrated. This includes breakpoint changes, fluid reflow, text wrapping, overflow, sticky or fixed positioning, viewport units, resize observers, canvas sizing, sidebars, and layout stability. Resize is optional and should not be added to unrelated comparisons.
 
 A resize action animates the page viewport while the recording canvas remains fixed at the largest dimensions used by the scenario. The sizes do not need to cross a CSS breakpoint:
@@ -70,6 +72,12 @@ A resize action animates the page viewport while the recording canvas remains fi
 	{ "type": "resize", "width": 1280, "height": 720, "durationMs": 800, "holdAfterMs": 800 }
 ]
 ```
+
+Set `anchor` on a resize action to control where the page sits in that fixed canvas:
+
+- `right` keeps the left edge fixed while the right edge moves. This is the default.
+- `left` keeps the right edge fixed while the left edge moves.
+- `both` moves both edges equally so the page remains centered.
 
 For breakpoint fixes, start on one side of the breakpoint and cross it during the recording rather than showing only a fixed mobile or desktop state.
 
@@ -88,7 +96,7 @@ The manual wizard defaults to a two-second static recording. Agent usage is pref
 
 ## Storage
 
-Raw videos, timing metadata, and rendered GIFs are written under VS Code workspace storage. They do not appear in Source Control. The preview provides **Save GIF As...** and **Reveal Session** controls.
+Raw videos, timing metadata, and rendered GIFs are written under VS Code workspace storage. They do not appear in Source Control. The preview provides **Save GIFs As...** and **Reveal Session** controls.
 
 `prUiCompare.retentionDays` keeps temporary sessions for 1 to 90 days. The default is 7 days.
 
@@ -96,9 +104,9 @@ Raw videos, timing metadata, and rendered GIFs are written under VS Code workspa
 
 ## Current limitations
 
-- Version 0.0.1 compares one baseline Git ref with the current workspace.
+- The extension currently compares one baseline Git ref with the current workspace.
 - Firefox and WebKit are not supported yet.
-- Action timing is recorded, but segment normalization and sequential playback are not exposed yet.
+- Playback is synchronized by action segment. Sequential playback is not exposed yet.
 - GitHub attachment upload remains manual. Save the GIF and drag it into the PR editor.
 - Authentication, database fixtures, environment files, and backend state remain project-specific.
 - Git submodule worktrees and Git LFS projects may require additional setup.

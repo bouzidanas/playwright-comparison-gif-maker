@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-08-10
+
+- Added left, right, and centered resize anchoring plus configurable border color and label corners.
+
 ## [0.0.6] - 2026-08-10
 
 - Added smooth, persistent camera zoom actions with element targeting and eased zoom-out.

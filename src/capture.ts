@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import * as vscode from 'vscode';
-import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ScenarioAction, Viewport, ZoomCue } from './model';
+import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, Viewport, ZoomCue } from './model';
 
 export async function captureScenario(
 	baseUrl: string,
@@ -27,6 +27,7 @@ export async function captureScenario(
 		await page.goto(initialUrl, { waitUntil: 'networkidle' });
 		await installCursorOverlay(page);
 		const regionSamples: CaptureRegion[] = [];
+		const resizeCues: ResizeCue[] = [];
 		const zoomCues: ZoomCue[] = [];
 		if (focusLocator) {
 			await page.locator(focusLocator).waitFor({ state: 'visible' });
@@ -37,7 +38,7 @@ export async function captureScenario(
 			regionSamples.push(initialRegion);
 		}
 		const replayOffsetMs = performance.now() - captureStartedAt;
-		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, zoomCues, token);
+		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, resizeCues, zoomCues, token);
 		await context.close();
 		if (!video) {
 			throw new Error('Playwright did not create a video for the comparison.');
@@ -47,6 +48,7 @@ export async function captureScenario(
 			timings,
 			replayOffsetMs,
 			recordingSize,
+			resizeCues,
 			zoomCues,
 			region: unionRegions(regionSamples),
 		};
@@ -90,6 +92,7 @@ async function replayScenario(
 	focusLocator: string | undefined,
 	focusPadding: number,
 	regionSamples: CaptureRegion[],
+	resizeCues: ResizeCue[],
 	zoomCues: ZoomCue[],
 	token: vscode.CancellationToken,
 ): Promise<ActionTiming[]> {
@@ -100,6 +103,19 @@ async function replayScenario(
 			throw new vscode.CancellationError();
 		}
 		const startedAtMs = performance.now() - recordingStartedAt;
+		if (action.type === 'resize') {
+			const from = page.viewportSize();
+			if (!from) {
+				throw new Error('The browser viewport is unavailable before resize.');
+			}
+			resizeCues.push({
+				actionIndex: index,
+				from,
+				to: { width: action.width, height: action.height },
+				anchor: action.anchor ?? 'right',
+				durationMs: action.durationMs ?? 800,
+			});
+		}
 		if (action.type === 'zoom') {
 			const scale = action.scale ?? (action.locator ? 1.8 : 1);
 			let target: CaptureRegion | undefined;

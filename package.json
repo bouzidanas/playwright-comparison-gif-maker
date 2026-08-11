@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -61,7 +61,7 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Creates a labeled Before and After GIF without creating or modifying files in the user's repository. It resolves a baseline Git ref into a detached worktree, starts the baseline and current workspace applications sequentially, replays the exact same declarative Playwright actions against both, stores artifacts outside the repository, and opens a preview. Always use this tool directly for PR UI comparisons; never write a JavaScript, TypeScript, Playwright, or shell helper script. It supports smooth, persistent camera zoom toward a target element so viewers can orient before detailed interactions, followed by an eased return to the full frame. It can also animate viewport resizing for any dimension-dependent behavior, including fluid reflow, overflow, wrapping, resize observers, viewport units, layout stability, and responsive breakpoints. Zoom and resize are optional and should only be used when relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
+        "modelDescription": "Creates a labeled Before and After GIF without creating or modifying files in the user's repository. It resolves a baseline Git ref into a detached worktree, starts the baseline and current workspace applications sequentially, replays the exact same declarative Playwright actions against both, stores artifacts outside the repository, and opens a preview. Always use this tool directly for PR UI comparisons; never write a JavaScript, TypeScript, Playwright, or shell helper script. It supports smooth, persistent camera zoom toward a target element so viewers can orient before detailed interactions, followed by an eased return to the full frame. It can also animate viewport resizing from the left, right, or both edges for centered page placement. Border color and each pane's label corner are configurable. Zoom and resize are optional and should only be used when relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
         "userDescription": "Record the same UI scenario before and after the current changes without modifying repository files.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
@@ -102,6 +102,31 @@
             "afterLabel": {
               "type": "string",
               "description": "Optional short label shown over the After recording."
+            },
+            "beforeLabelAlignment": {
+              "type": "string",
+              "enum": [
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ],
+              "description": "Corner for the Before label. Defaults to top-left."
+            },
+            "afterLabelAlignment": {
+              "type": "string",
+              "enum": [
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ],
+              "description": "Corner for the After label. Defaults to top-right."
+            },
+            "borderColor": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$",
+              "description": "Six-digit hex color for pane frames, the divider, and unused resize canvas. Defaults to GitHub dark border #30363d."
             },
             "focusLocator": {
               "type": "string",
@@ -199,6 +224,15 @@
                         "minimum": 240,
                         "maximum": 2160,
                         "description": "Target viewport height for a resize action."
+                      },
+                      "anchor": {
+                        "type": "string",
+                        "enum": [
+                          "left",
+                          "right",
+                          "both"
+                        ],
+                        "description": "Edge or edges that move during resize. right keeps the left edge fixed, left keeps the right edge fixed, and both moves both edges equally so the page remains centered. Defaults to right."
                       },
                       "scale": {
                         "type": "number",

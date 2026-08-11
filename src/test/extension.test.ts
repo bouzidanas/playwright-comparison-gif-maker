@@ -45,6 +45,27 @@ suite('Comparison model', () => {
 		);
 	});
 
+	test('rejects invalid visual customization values', () => {
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, borderColor: 'blue' }),
+			/six-digit hex color/,
+		);
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, beforeLabelAlignment: 'center' as never }),
+			/alignment .* unsupported/,
+		);
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Invalid anchor',
+					actions: [{ type: 'resize', width: 640, height: 480, anchor: 'middle' as never }],
+				},
+			}),
+			/unsupported anchor/,
+		);
+	});
+
 	test('rejects zoom magnification without a target', () => {
 		assert.throws(
 			() => validateComparisonRequest({
