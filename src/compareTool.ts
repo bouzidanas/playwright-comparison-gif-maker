@@ -26,6 +26,8 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 		const result = await this.execute(options.input, token);
 		const summary = {
 			gifPath: result.gifPath,
+			beforeGifPath: result.beforeGifPath,
+			afterGifPath: result.afterGifPath,
 			sessionDirectory: result.sessionDirectory,
 			baseSha: result.baseSha,
 			candidateSha: result.candidateSha,

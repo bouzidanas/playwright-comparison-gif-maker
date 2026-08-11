@@ -55,6 +55,8 @@ suite('Comparison runner end to end', function () {
 			assert.match(result.beforeLabel, /^Before \([0-9a-f]{8}\)$/);
 			assert.match(result.afterLabel, /^After \([0-9a-f]{8}\)$/);
 			assert.ok((await stat(result.gifPath)).size > 1_000);
+			assert.ok((await stat(result.beforeGifPath)).size > 1_000);
+			assert.ok((await stat(result.afterGifPath)).size > 1_000);
 			const session = JSON.parse(await readFile(path.join(result.sessionDirectory, 'session.json'), 'utf8')) as {
 				timings: { before: unknown[]; after: unknown[] };
 			};

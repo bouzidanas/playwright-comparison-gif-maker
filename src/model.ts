@@ -62,6 +62,8 @@ export interface ComparisonResult {
 	sessionId: string;
 	sessionDirectory: string;
 	gifPath: string;
+	beforeGifPath: string;
+	afterGifPath: string;
 	beforeVideoPath: string;
 	afterVideoPath: string;
 	baseSha: string;

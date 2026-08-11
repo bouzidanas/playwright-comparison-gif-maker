@@ -57,7 +57,7 @@ export class ComparisonRunner {
 			const layout = resolveComparisonLayout(viewport, before.region, after.region, request.layout ?? 'auto');
 			const beforeLabel = withShortSha(request.beforeLabel || request.baseRef, baseSha);
 			const afterLabel = withShortSha(request.afterLabel || candidateBranch || 'After', candidateSha);
-			const gifPath = await renderComparisonGif(
+			const rendered = await renderComparisonGif(
 				before.videoPath,
 				after.videoPath,
 				sessionDirectory,
@@ -78,7 +78,9 @@ export class ComparisonRunner {
 			const result: ComparisonResult = {
 				sessionId,
 				sessionDirectory,
-				gifPath,
+				gifPath: rendered.comparisonGifPath,
+				beforeGifPath: rendered.beforeGifPath,
+				afterGifPath: rendered.afterGifPath,
 				beforeVideoPath: before.videoPath,
 				afterVideoPath: after.videoPath,
 				baseSha,

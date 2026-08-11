@@ -16,6 +16,7 @@ The intended workflow is straightforward. Implement and test a visible UI change
 - Synchronizes each paired action segment so interactions and resize transitions begin and end together even when the two application versions respond at different speeds.
 - Renders a visible frame and divider around the two recordings.
 - Renders labels inside the outer top corners with short commit IDs, such as `main (a1b2c3d4)` and `fix-toolbar (e5f6a7b8)`.
+- Saves synchronized `before.gif` and `after.gif` files beside `comparison.gif` and exports all three together.
 - Stores recordings in VS Code workspace storage rather than the repository.
 - Contributes the `/create-pr-ui-comparison` Agent Skill and `#createPrUiComparison` tool.
 

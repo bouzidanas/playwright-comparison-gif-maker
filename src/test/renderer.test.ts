@@ -29,7 +29,7 @@ suite('Comparison renderer', function () {
 				{ index: 0, type: 'hold' as const, startedAtMs: 0, endedAtMs: 600 },
 				{ index: 1, type: 'resize' as const, startedAtMs: 600, endedAtMs: 1_000 },
 			];
-			const gifPath = await renderComparisonGif(
+			const rendered = await renderComparisonGif(
 				before,
 				after,
 				directory,
@@ -46,10 +46,18 @@ suite('Comparison renderer', function () {
 				new vscode.CancellationTokenSource().token,
 				() => undefined,
 			);
-			assert.ok((await stat(gifPath)).size > 1_000);
-			const header = await readFile(gifPath);
+			assert.ok((await stat(rendered.comparisonGifPath)).size > 1_000);
+			assert.ok((await stat(rendered.beforeGifPath)).size > 1_000);
+			assert.ok((await stat(rendered.afterGifPath)).size > 1_000);
+			const header = await readFile(rendered.comparisonGifPath);
 			assert.strictEqual(header.readUInt16LE(6), 966);
 			assert.strictEqual(header.readUInt16LE(8), 268);
+			const beforeHeader = await readFile(rendered.beforeGifPath);
+			assert.strictEqual(beforeHeader.readUInt16LE(6), 966);
+			assert.strictEqual(beforeHeader.readUInt16LE(8), 134);
+			const afterHeader = await readFile(rendered.afterGifPath);
+			assert.strictEqual(afterHeader.readUInt16LE(6), 966);
+			assert.strictEqual(afterHeader.readUInt16LE(8), 134);
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}

@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-08-10
+
+- Added separate synchronized Before and After GIF artifacts and three-file export.
 ## [0.0.4] - 2026-08-10
 
 - Synchronized Before and After recordings at every action boundary.

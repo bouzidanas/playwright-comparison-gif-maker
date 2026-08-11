@@ -12,6 +12,12 @@ import type {
 
 const EXTREME_WIDE_ASPECT_RATIO = 3;
 
+export interface RenderedGifs {
+	comparisonGifPath: string;
+	beforeGifPath: string;
+	afterGifPath: string;
+}
+
 export async function renderComparisonGif(
 	beforeVideoPath: string,
 	afterVideoPath: string,
@@ -28,12 +34,14 @@ export async function renderComparisonGif(
 	layoutPreference: ComparisonLayout,
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
-): Promise<string> {
+): Promise<RenderedGifs> {
 	if (!ffmpegPath) {
 		throw new Error('No FFmpeg binary is available for this operating system and architecture.');
 	}
 	const executablePath = ffmpegPath;
-	const outputPath = path.join(outputDirectory, 'comparison.gif');
+	const comparisonGifPath = path.join(outputDirectory, 'comparison.gif');
+	const beforeGifPath = path.join(outputDirectory, 'before.gif');
+	const afterGifPath = path.join(outputDirectory, 'after.gif');
 	const layout = resolveComparisonLayout(viewport, beforeRegion, afterRegion, layoutPreference);
 	const filter = createFilter(
 		beforeLabel,
@@ -51,9 +59,15 @@ export async function renderComparisonGif(
 		'-i', beforeVideoPath,
 		'-i', afterVideoPath,
 		'-filter_complex', filter,
-		'-map', '[out]',
+		'-map', '[comparisonOut]',
 		'-loop', '0',
-		outputPath,
+		comparisonGifPath,
+		'-map', '[beforeOut]',
+		'-loop', '0',
+		beforeGifPath,
+		'-map', '[afterOut]',
+		'-loop', '0',
+		afterGifPath,
 	];
 
 	await new Promise<void>((resolve, reject) => {
@@ -76,7 +90,7 @@ export async function renderComparisonGif(
 			}
 		});
 	});
-	return outputPath;
+	return { comparisonGifPath, beforeGifPath, afterGifPath };
 }
 
 export function resolveComparisonLayout(
@@ -124,18 +138,25 @@ function createFilter(
 		'boxborderw=7',
 	].join(':');
 	const border = 'pad=iw+6:ih+6:3:3:color=white';
-	const stack = layout === 'vertical'
-		? '[before][after]vstack=inputs=2:shortest=1[stack]'
-		: '[before][after]hstack=inputs=2:shortest=1[stack]';
 	return [
 		...beforeTimeline.filters,
 		...afterTimeline.filters,
-		`${beforeTimeline.output}${prepare(beforeRegion)},${text(leftLabel, 'left')},${border}[before]`,
-		`${afterTimeline.output}${prepare(afterRegion)},${text(rightLabel, 'right')},${border}[after]`,
-		stack,
-		'[stack]split[paletteSource][gifSource]',
-		'[paletteSource]palettegen=max_colors=128[palette]',
-		'[gifSource][palette]paletteuse=dither=bayer[out]',
+		`${beforeTimeline.output}${prepare(beforeRegion)},${text(leftLabel, 'left')},${border}[beforePane]`,
+		`${afterTimeline.output}${prepare(afterRegion)},${text(rightLabel, 'right')},${border}[afterPane]`,
+		'[beforePane]split=2[beforeForStack][beforeIndividual]',
+		'[afterPane]split=2[afterForStack][afterIndividual]',
+		layout === 'vertical'
+			? '[beforeForStack][afterForStack]vstack=inputs=2:shortest=1[stack]'
+			: '[beforeForStack][afterForStack]hstack=inputs=2:shortest=1[stack]',
+		'[stack]split[comparisonPaletteSource][comparisonGifSource]',
+		'[comparisonPaletteSource]palettegen=max_colors=128[comparisonPalette]',
+		'[comparisonGifSource][comparisonPalette]paletteuse=dither=bayer[comparisonOut]',
+		'[beforeIndividual]split[beforePaletteSource][beforeGifSource]',
+		'[beforePaletteSource]palettegen=max_colors=128[beforePalette]',
+		'[beforeGifSource][beforePalette]paletteuse=dither=bayer[beforeOut]',
+		'[afterIndividual]split[afterPaletteSource][afterGifSource]',
+		'[afterPaletteSource]palettegen=max_colors=128[afterPalette]',
+		'[afterGifSource][afterPalette]paletteuse=dither=bayer[afterOut]',
 	].join(';');
 }
 

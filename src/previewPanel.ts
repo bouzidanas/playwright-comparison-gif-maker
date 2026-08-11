@@ -18,24 +18,32 @@ export async function showComparisonResult(
 	panel.webview.html = previewHtml(panel.webview, gifUri, result, request);
 	panel.webview.onDidReceiveMessage(async message => {
 		if (message?.type === 'save') {
-			await saveGif(result.gifPath, request.scenario.name);
+			await saveGifs(result, request.scenario.name);
 		} else if (message?.type === 'reveal') {
 			await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(result.sessionDirectory));
 		}
 	});
 }
 
-async function saveGif(sourcePath: string, scenarioName: string): Promise<void> {
+async function saveGifs(result: ComparisonResult, scenarioName: string): Promise<void> {
 	const destination = await vscode.window.showSaveDialog({
 		filters: { GIF: ['gif'] },
-		saveLabel: 'Export comparison GIF',
+		saveLabel: 'Export comparison GIFs',
 		defaultUri: vscode.Uri.file(path.join(os.homedir(), `${fileName(scenarioName)}.gif`)),
 	});
 	if (!destination) {
 		return;
 	}
-	await copyFile(sourcePath, destination.fsPath);
-	await vscode.window.showInformationMessage(`Saved ${path.basename(destination.fsPath)}.`, 'Reveal')
+	const parsed = path.parse(destination.fsPath);
+	const extension = parsed.ext || '.gif';
+	const beforeDestination = path.join(parsed.dir, `${parsed.name}-before${extension}`);
+	const afterDestination = path.join(parsed.dir, `${parsed.name}-after${extension}`);
+	await Promise.all([
+		copyFile(result.gifPath, destination.fsPath),
+		copyFile(result.beforeGifPath, beforeDestination),
+		copyFile(result.afterGifPath, afterDestination),
+	]);
+	await vscode.window.showInformationMessage(`Saved ${parsed.name}, ${parsed.name}-before, and ${parsed.name}-after GIFs.`, 'Reveal')
 		.then(action => action === 'Reveal' && vscode.commands.executeCommand('revealFileInOS', destination));
 }
 
@@ -75,7 +83,7 @@ function previewHtml(
 		<img class="preview" src="${gifUri}" alt="Before and After UI comparison">
 		${result.candidateDirty ? '<p class="warning">The After capture includes uncommitted changes. Regenerate after committing and pushing before publishing the PR.</p>' : ''}
 		<div class="actions">
-			<button id="save" type="button">Save GIF As...</button>
+			<button id="save" type="button">Save GIFs As...</button>
 			<button id="reveal" class="secondary" type="button">Reveal Session</button>
 		</div>
 	</main>

@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
