@@ -452,6 +452,7 @@ function synchronizeTimeline(
 	const segments = timings.map((timing, index) => {
 		const source = timings.length > 1 ? `[${prefix}Source${index}]` : `[${input}:v]`;
 		const segment = `[${prefix}Segment${index}]`;
+		const rawSegment = `[${prefix}RawSegment${index}]`;
 		const start = seconds(replayOffsetMs + timing.startedAtMs);
 		const end = seconds(replayOffsetMs + timing.endedAtMs);
 		const rate = targetDurations[index] / duration(timing);
@@ -459,13 +460,23 @@ function synchronizeTimeline(
 		const resizeTransitionMs = resizeCue
 			? Math.min(resizeCue.durationMs, duration(timing)) * rate
 			: 0;
-		const placementFilter = region
-			? ''
-			: createResizePlacementFilter(
+		filters.push([
+			`${source}trim=start=${start}:end=${end}`,
+			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
+			`fps=${frameRate}`,
+		].join(',') + rawSegment);
+		const placedSegment = region
+			? rawSegment
+			: createResizePlacementFilters(
+				filters,
+				rawSegment,
+				prefix,
+				index,
 				viewport,
 				resizeCue?.to ?? viewport,
 				resizeCue?.anchor ?? resizeAnchor,
 				resizeTransitionMs,
+				targetDurations[index],
 				recordingSize,
 				backgroundColor,
 				frameRate,
@@ -477,16 +488,13 @@ function synchronizeTimeline(
 			? Math.min(cue.durationMs, duration(timing)) * rate
 			: 0;
 		const cameraFilter = createCameraFilter(camera, nextCamera, transitionMs, geometry.output, frameRate);
-		filters.push([
-			`${source}trim=start=${start}:end=${end}`,
-			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
-			`fps=${frameRate}`,
-			placementFilter,
+		const transforms = [
 			crop(region),
 			'setsar=1',
 			cameraFilter,
 			`scale=${geometry.output.width}:${geometry.output.height}:flags=lanczos`,
-		].filter(Boolean).join(',') + segment);
+		].filter(Boolean).join(',');
+		filters.push(`${placedSegment}${transforms}${segment}`);
 		if (resizeCue) {
 			viewport = resizeCue.to;
 			resizeAnchor = resizeCue.anchor;
@@ -504,28 +512,45 @@ function resolveResizeOffset(viewport: Viewport, anchor: ResizeCue['anchor'], re
 	return anchor === 'left' ? slack : anchor === 'both' ? slack / 2 : 0;
 }
 
-function createResizePlacementFilter(
+function createResizePlacementFilters(
+	filters: string[],
+	input: string,
+	prefix: string,
+	index: number,
 	start: Viewport,
 	end: Viewport,
 	anchor: ResizeCue['anchor'],
 	transitionMs: number,
+	segmentDurationMs: number,
 	recordingSize: Viewport,
 	backgroundColor: string,
 	frameRate: number,
 ): string {
 	if (anchor === 'right' && start.width === recordingSize.width && end.width === recordingSize.width) {
-		return '';
+		return input;
 	}
 	const frames = Math.max(1, Math.round(transitionMs * frameRate / 1000));
 	const progress = frames <= 1 ? '1' : `min(1,n/${frames - 1})`;
 	const eased = `(0.5-0.5*cos(PI*${progress}))`;
 	const width = interpolate(start.width, end.width, eased);
+	const height = interpolate(start.height, end.height, eased);
 	const slack = `${recordingSize.width}-(${width})`;
 	const offset = anchor === 'left' ? slack : anchor === 'both' ? `(${slack})/2` : '0';
-	return [
-		`pad=${recordingSize.width * 2}:${recordingSize.height}:${recordingSize.width}:0:color=${ffmpegColor(backgroundColor)}`,
+	const rightMask = `[${prefix}RightMask${index}]`;
+	const bottomMask = `[${prefix}BottomMask${index}]`;
+	const rightCleaned = `[${prefix}RightCleaned${index}]`;
+	const cleaned = `[${prefix}Cleaned${index}]`;
+	const output = `[${prefix}Placed${index}]`;
+	const color = `color=c=${ffmpegColor(backgroundColor)}:s=${recordingSize.width}x${recordingSize.height}:r=${frameRate}:d=${seconds(segmentDurationMs)}`;
+	filters.push(`${color}${rightMask}`);
+	filters.push(`${input}${rightMask}overlay=x='${width}':y=0:eval=frame:shortest=1${rightCleaned}`);
+	filters.push(`${color}${bottomMask}`);
+	filters.push(`${rightCleaned}${bottomMask}overlay=x=0:y='${height}':eval=frame:shortest=1${cleaned}`);
+	filters.push([
+		`${cleaned}pad=${recordingSize.width * 2}:${recordingSize.height}:${recordingSize.width}:0:color=${ffmpegColor(backgroundColor)}`,
 		`crop=${recordingSize.width}:${recordingSize.height}:x='${recordingSize.width}-(${offset})':y=0`,
-	].join(',');
+	].join(',') + output);
+	return output;
 }
 
 interface CameraState {

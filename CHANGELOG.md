@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-08-11
+
+- Corrected left, right, and centered resize placement by isolating the live viewport from Playwright's blank recording area.
+
 ## [0.0.12] - 2026-08-11
 
 - Increased animation and camera zoom rendering to 24 fps for smoother motion.
