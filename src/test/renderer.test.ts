@@ -116,7 +116,8 @@ suite('Comparison renderer', function () {
 			const after = path.join(directory, 'after.mp4');
 			await createVideo(ffmpegPath, before, '0xc84b31');
 			await createVideo(ffmpegPath, after, '0x2e7d5b');
-			const timings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
+			const beforeTimings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
+			const afterTimings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 1_100 }];
 			for (const resizeMode of ['keep-right-edge-fixed', 'keep-left-edge-fixed', 'keep-window-centered'] as const) {
 				const resizeCues = [{
 					actionIndex: 0,
@@ -136,8 +137,8 @@ suite('Comparison renderer', function () {
 					{ width: 640, height: 480 },
 					undefined,
 					undefined,
-					timings,
-					timings,
+					beforeTimings,
+					afterTimings,
 					0,
 					0,
 					{ width: 640, height: 480 },
@@ -158,6 +159,14 @@ suite('Comparison renderer', function () {
 				const centerPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 243, 200);
 				const rightPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 470, 200);
 				const middleBounds = await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, 9, 200);
+				for (const frame of [4, 9, 14, 18]) {
+					const beforeBounds = frame === 9
+						? middleBounds
+						: await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, frame, 200);
+					const afterBounds = await readGifFrameContentBounds(ffmpegPath, rendered.afterGifPath, frame, 200, isAfterContent);
+					assert.ok(Math.abs(beforeBounds.min - afterBounds.min) <= 2, `${resizeMode} left edges differ at frame ${frame}: ${beforeBounds.min} and ${afterBounds.min}`);
+					assert.ok(Math.abs(beforeBounds.max - afterBounds.max) <= 2, `${resizeMode} right edges differ at frame ${frame}: ${beforeBounds.max} and ${afterBounds.max}`);
+				}
 				if (resizeMode === 'keep-right-edge-fixed') {
 					const initialLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 0, 20, 200);
 					const middleLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 9, 20, 200);
@@ -168,6 +177,8 @@ suite('Comparison renderer', function () {
 					assert.ok(middleBounds.max >= 480, `left motion moved the fixed right edge to ${middleBounds.max}`);
 					assert.ok(isBackground(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
 					assert.ok(isContent(rightPixel), `${resizeMode} right pixel ${rightPixel}`);
+					const labelBounds = await readGifFrameWhiteBounds(ffmpegPath, rendered.beforeGifPath, 0, 8, 8, 150, 60);
+					assert.ok(labelBounds.height >= 17, `label glyph height ${labelBounds.height} is below the readable floor`);
 				} else if (resizeMode === 'keep-left-edge-fixed') {
 					assert.ok(middleBounds.min <= 5, `right motion moved the fixed left edge to ${middleBounds.min}`);
 					assert.ok(isContent(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
@@ -264,6 +275,7 @@ async function readGifFrameContentBounds(
 	gifPath: string,
 	frame: number,
 	y: number,
+	isPageContent: (pixel: [number, number, number]) => boolean = isContent,
 ): Promise<{ min: number; max: number }> {
 	return new Promise((resolve, reject) => {
 		const chunks: Buffer[] = [];
@@ -286,7 +298,7 @@ async function readGifFrameContentBounds(
 			}
 			const contentPixels: number[] = [];
 			for (let offset = 0; offset < row.length; offset += 3) {
-				if (isContent([row[offset], row[offset + 1], row[offset + 2]])) {
+				if (isPageContent([row[offset], row[offset + 1], row[offset + 2]])) {
 					contentPixels.push(offset / 3);
 				}
 			}
@@ -299,8 +311,61 @@ async function readGifFrameContentBounds(
 	});
 }
 
+async function readGifFrameWhiteBounds(
+	executablePath: string,
+	gifPath: string,
+	frame: number,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+): Promise<{ width: number; height: number }> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		const child = spawn(executablePath, [
+			'-v', 'error',
+			'-ignore_loop', '1',
+			'-i', gifPath,
+			'-vf', `select=eq(n\\,${frame}),crop=${width}:${height}:${x}:${y},format=rgb24`,
+			'-frames:v', '1',
+			'-f', 'rawvideo',
+			'pipe:1',
+		], { windowsHide: true });
+		child.stdout.on('data', data => chunks.push(Buffer.from(data)));
+		child.once('error', reject);
+		child.once('exit', code => {
+			const pixels = Buffer.concat(chunks);
+			if (code !== 0 || pixels.length < width * height * 3) {
+				reject(new Error(`GIF label sampling exited with ${code}.`));
+				return;
+			}
+			const whiteX: number[] = [];
+			const whiteY: number[] = [];
+			for (let offset = 0; offset < pixels.length; offset += 3) {
+				if (pixels[offset] > 220 && pixels[offset + 1] > 220 && pixels[offset + 2] > 220) {
+					const pixel = offset / 3;
+					whiteX.push(pixel % width);
+					whiteY.push(Math.floor(pixel / width));
+				}
+			}
+			if (whiteX.length === 0) {
+				reject(new Error(`GIF frame ${frame} did not contain white label pixels.`));
+				return;
+			}
+			resolve({
+				width: Math.max(...whiteX) - Math.min(...whiteX) + 1,
+				height: Math.max(...whiteY) - Math.min(...whiteY) + 1,
+			});
+		});
+	});
+}
+
 function isContent([red, green, blue]: [number, number, number]): boolean {
 	return red > 140 && red > green * 1.5 && red > blue * 1.5;
+}
+
+function isAfterContent([red, green, blue]: [number, number, number]): boolean {
+	return green > 90 && green > red * 1.25 && green > blue * 1.15;
 }
 
 function isBackground([red, green, blue]: [number, number, number]): boolean {

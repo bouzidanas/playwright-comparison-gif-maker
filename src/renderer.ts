@@ -240,12 +240,19 @@ function createFilter(
 	layout: ResolvedComparisonLayout,
 ): string {
 	const targetDurations = resolveSynchronizedDurations(beforeTimings, afterTimings);
+	const resizeTransitionDurations = targetDurations.map((targetDuration, index) => {
+		const beforeCue = beforeResizeCues.find(cue => cue.actionIndex === index);
+		const afterCue = afterResizeCues.find(cue => cue.actionIndex === index);
+		const configuredDuration = Math.max(beforeCue?.durationMs ?? 0, afterCue?.durationMs ?? 0);
+		return Math.min(configuredDuration, targetDuration);
+	});
 	const beforeTimeline = synchronizeTimeline(
 		0,
 		'before',
 		beforeTimings,
 		beforeReplayOffsetMs,
 		targetDurations,
+		resizeTransitionDurations,
 		beforeRegion,
 		beforeRecordingSize,
 		layout,
@@ -260,6 +267,7 @@ function createFilter(
 		afterTimings,
 		afterReplayOffsetMs,
 		targetDurations,
+		resizeTransitionDurations,
 		afterRegion,
 		afterRecordingSize,
 		layout,
@@ -297,7 +305,7 @@ function createTextFilter(label: string, alignment: LabelAlignment): string {
 	return [
 		`drawtext=text='${label}'`,
 		'fontcolor=white',
-		'fontsize=18',
+		'fontsize=22',
 		`x=${alignment.endsWith('left') ? '14' : 'w-text_w-14'}`,
 		`y=${alignment.startsWith('top') ? '14' : 'h-text_h-14'}`,
 		'box=1',
@@ -426,6 +434,7 @@ function synchronizeTimeline(
 	timings: ActionTiming[],
 	replayOffsetMs: number,
 	targetDurations: number[],
+	resizeTransitionDurations: number[],
 	region: CaptureRegion | undefined,
 	recordingSize: Viewport,
 	layout: ResolvedComparisonLayout,
@@ -457,9 +466,7 @@ function synchronizeTimeline(
 		const end = seconds(replayOffsetMs + timing.endedAtMs);
 		const rate = targetDurations[index] / duration(timing);
 		const resizeCue = resizeCueMap.get(index);
-		const resizeTransitionMs = resizeCue
-			? Math.min(resizeCue.durationMs, duration(timing)) * rate
-			: 0;
+		const resizeTransitionMs = resizeCue ? resizeTransitionDurations[index] : 0;
 		filters.push([
 			`${source}trim=start=${start}:end=${end}`,
 			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,

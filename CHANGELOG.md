@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.16] - 2026-08-11
+
+- Synchronized Before and After resize placement with one shared transition duration, even when their measured action runtimes differ.
+- Raised the rendered label size to a 22-pixel readability floor for GIF and PNG output.
+- Added multi-frame edge synchronization checks for every resize mode and a rendered label glyph-height check.
+
 ## [0.0.15] - 2026-08-11
 
 - Replaced directional resize configuration with `keep-left-edge-fixed`, `keep-right-edge-fixed`, and `keep-window-centered` outcomes so agents can match the requested invariant directly.

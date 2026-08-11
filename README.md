@@ -83,7 +83,7 @@ Zoom is a recording-camera effect and does not change page layout, browser zoom,
 
 Camera movement uses cosine easing for a smooth arrival and departure. Moderate scales and short holds help viewers orient without making the comparison feel busy.
 
-`borderColor` accepts a six-digit hex color and defaults to GitHub dark border `#30363d`. It colors each pane frame, the divider, and unused canvas exposed by resize movement. `beforeLabelAlignment` and `afterLabelAlignment` accept `top-left`, `top-right`, `bottom-left`, or `bottom-right`. Their defaults are `top-left` for Before and `top-right` for After.
+`borderColor` accepts a six-digit hex color and defaults to GitHub dark border `#30363d`. It colors each pane frame, the divider, and unused canvas exposed by resize movement. `beforeLabelAlignment` and `afterLabelAlignment` accept `top-left`, `top-right`, `bottom-left`, or `bottom-right`. Their defaults are `top-left` for Before and `top-right` for After. Labels use a renderer-owned 22-pixel minimum size so agents cannot produce unreadably small text.
 
 Use resize actions whenever viewport dimensions are part of the behavior being demonstrated. This includes breakpoint changes, fluid reflow, text wrapping, overflow, sticky or fixed positioning, viewport units, resize observers, canvas sizing, sidebars, and layout stability. Resize is optional and should not be added to unrelated comparisons.
 
