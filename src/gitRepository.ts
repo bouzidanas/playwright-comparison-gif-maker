@@ -26,6 +26,15 @@ export class GitRepository {
 		return this.resolveCommit('HEAD');
 	}
 
+	async currentBranch(): Promise<string | undefined> {
+		try {
+			const { stdout } = await this.git(['branch', '--show-current']);
+			return stdout.trim() || undefined;
+		} catch {
+			return undefined;
+		}
+	}
+
 	async isDirty(): Promise<boolean> {
 		const { stdout } = await this.git(['status', '--porcelain=v1', '--untracked-files=normal']);
 		return stdout.length > 0;

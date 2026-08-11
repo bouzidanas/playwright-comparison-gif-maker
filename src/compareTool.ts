@@ -30,6 +30,8 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 			baseSha: result.baseSha,
 			candidateSha: result.candidateSha,
 			candidateDirty: result.candidateDirty,
+			beforeLabel: result.beforeLabel,
+			afterLabel: result.afterLabel,
 			layout: result.layout,
 		};
 		return new vscode.LanguageModelToolResult([

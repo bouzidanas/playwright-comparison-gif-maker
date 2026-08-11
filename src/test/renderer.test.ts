@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import ffmpegPath from 'ffmpeg-static';
 import * as vscode from 'vscode';
-import { renderComparisonGif } from '../renderer';
+import { renderComparisonGif, resolveSynchronizedDurations } from '../renderer';
 
 suite('Comparison renderer', function () {
 	this.timeout(30_000);
@@ -21,6 +21,14 @@ suite('Comparison renderer', function () {
 			await createVideo(ffmpegPath, before, '0xc84b31');
 			await createVideo(ffmpegPath, after, '0x2e7d5b');
 			const menuBar = { x: 20, y: 20, width: 600, height: 80 };
+			const beforeTimings = [
+				{ index: 0, type: 'hold' as const, startedAtMs: 0, endedAtMs: 200 },
+				{ index: 1, type: 'resize' as const, startedAtMs: 200, endedAtMs: 1_000 },
+			];
+			const afterTimings = [
+				{ index: 0, type: 'hold' as const, startedAtMs: 0, endedAtMs: 600 },
+				{ index: 1, type: 'resize' as const, startedAtMs: 600, endedAtMs: 1_000 },
+			];
 			const gifPath = await renderComparisonGif(
 				before,
 				after,
@@ -30,17 +38,34 @@ suite('Comparison renderer', function () {
 				{ width: 640, height: 480 },
 				menuBar,
 				menuBar,
+				beforeTimings,
+				afterTimings,
+				0,
+				0,
 				'vertical',
 				new vscode.CancellationTokenSource().token,
 				() => undefined,
 			);
 			assert.ok((await stat(gifPath)).size > 1_000);
 			const header = await readFile(gifPath);
-			assert.strictEqual(header.readUInt16LE(6), 960);
-			assert.strictEqual(header.readUInt16LE(8), 256);
+			assert.strictEqual(header.readUInt16LE(6), 966);
+			assert.strictEqual(header.readUInt16LE(8), 268);
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
+	});
+
+	test('normalizes each paired action to the longer duration', () => {
+		assert.deepStrictEqual(resolveSynchronizedDurations(
+			[
+				{ index: 0, type: 'click', startedAtMs: 0, endedAtMs: 250 },
+				{ index: 1, type: 'hold', startedAtMs: 250, endedAtMs: 1_000 },
+			],
+			[
+				{ index: 0, type: 'click', startedAtMs: 0, endedAtMs: 500 },
+				{ index: 1, type: 'hold', startedAtMs: 500, endedAtMs: 900 },
+			],
+		), [500, 750]);
 	});
 });
 

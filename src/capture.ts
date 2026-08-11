@@ -21,6 +21,7 @@ export async function captureScenario(
 			recordVideo: { dir: outputDirectory, size: recordingSize },
 		});
 		const page = await context.newPage();
+		const captureStartedAt = performance.now();
 		const video = page.video();
 		const initialUrl = new URL(route || '/', baseUrl).toString();
 		await page.goto(initialUrl, { waitUntil: 'networkidle' });
@@ -34,12 +35,13 @@ export async function captureScenario(
 			}
 			regionSamples.push(initialRegion);
 		}
+		const replayOffsetMs = performance.now() - captureStartedAt;
 		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, token);
 		await context.close();
 		if (!video) {
 			throw new Error('Playwright did not create a video for the comparison.');
 		}
-		return { videoPath: await video.path(), timings, region: unionRegions(regionSamples) };
+		return { videoPath: await video.path(), timings, replayOffsetMs, region: unionRegions(regionSamples) };
 	} finally {
 		await browser.close();
 	}

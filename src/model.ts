@@ -54,6 +54,7 @@ export interface ActionTiming {
 export interface CaptureResult {
 	videoPath: string;
 	timings: ActionTiming[];
+	replayOffsetMs: number;
 	region?: CaptureRegion;
 }
 
@@ -66,6 +67,8 @@ export interface ComparisonResult {
 	baseSha: string;
 	candidateSha?: string;
 	candidateDirty: boolean;
+	beforeLabel: string;
+	afterLabel: string;
 	layout: ResolvedComparisonLayout;
 }
 

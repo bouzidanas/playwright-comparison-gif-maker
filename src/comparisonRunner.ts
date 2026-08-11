@@ -39,6 +39,7 @@ export class ComparisonRunner {
 			const baseSha = await repository.addDetachedWorktree(request.baseRef, worktreePath);
 			worktreeCreated = true;
 			const candidateSha = await repository.headSha();
+			const candidateBranch = await repository.currentBranch();
 			const candidateDirty = await repository.isDirty();
 
 			if (request.installCommand) {
@@ -54,15 +55,21 @@ export class ComparisonRunner {
 			onProgress('Rendering comparison GIF');
 			const viewport = request.viewport ?? { width: 1280, height: 720 };
 			const layout = resolveComparisonLayout(viewport, before.region, after.region, request.layout ?? 'auto');
+			const beforeLabel = withShortSha(request.beforeLabel || request.baseRef, baseSha);
+			const afterLabel = withShortSha(request.afterLabel || candidateBranch || 'After', candidateSha);
 			const gifPath = await renderComparisonGif(
 				before.videoPath,
 				after.videoPath,
 				sessionDirectory,
-				request.beforeLabel || `Before ${request.baseRef}`,
-				request.afterLabel || 'After current workspace',
+				beforeLabel,
+				afterLabel,
 				viewport,
 				before.region,
 				after.region,
+				before.timings,
+				after.timings,
+				before.replayOffsetMs,
+				after.replayOffsetMs,
 				layout,
 				token,
 				text => this.output.append(text),
@@ -77,6 +84,8 @@ export class ComparisonRunner {
 				baseSha,
 				candidateSha,
 				candidateDirty,
+				beforeLabel,
+				afterLabel,
 				layout,
 			};
 			await writeFile(
@@ -125,4 +134,8 @@ export class ComparisonRunner {
 
 function slug(value: string): string {
 	return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'comparison';
+}
+
+function withShortSha(label: string, sha: string): string {
+	return `${label} (${sha.slice(0, 8)})`;
 }
