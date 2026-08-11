@@ -15,9 +15,10 @@ export async function captureScenario(
 ): Promise<CaptureResult> {
 	const browser = await launchBrowser();
 	try {
+		const recordingSize = getRecordingSize(viewport, scenario);
 		const context = await browser.newContext({
 			viewport,
-			recordVideo: { dir: outputDirectory, size: viewport },
+			recordVideo: { dir: outputDirectory, size: recordingSize },
 		});
 		const page = await context.newPage();
 		const video = page.video();
@@ -27,13 +28,13 @@ export async function captureScenario(
 		const regionSamples: CaptureRegion[] = [];
 		if (focusLocator) {
 			await page.locator(focusLocator).waitFor({ state: 'visible' });
-			const initialRegion = await measureFocusRegion(page, focusLocator, focusPadding, viewport);
+			const initialRegion = await measureFocusRegion(page, focusLocator, focusPadding);
 			if (!initialRegion) {
 				throw new Error(`Focus locator "${focusLocator}" did not have visible bounds.`);
 			}
 			regionSamples.push(initialRegion);
 		}
-		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, viewport, regionSamples, token);
+		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, token);
 		await context.close();
 		if (!video) {
 			throw new Error('Playwright did not create a video for the comparison.');
@@ -78,7 +79,6 @@ async function replayScenario(
 	scenario: ComparisonScenario,
 	focusLocator: string | undefined,
 	focusPadding: number,
-	viewport: Viewport,
 	regionSamples: CaptureRegion[],
 	token: vscode.CancellationToken,
 ): Promise<ActionTiming[]> {
@@ -95,7 +95,7 @@ async function replayScenario(
 			await page.waitForTimeout(holdAfterMs);
 		}
 		if (focusLocator) {
-			const region = await measureFocusRegion(page, focusLocator, focusPadding, viewport);
+			const region = await measureFocusRegion(page, focusLocator, focusPadding);
 			if (region) {
 				regionSamples.push(region);
 			}
@@ -114,10 +114,13 @@ async function measureFocusRegion(
 	page: Page,
 	locator: string,
 	padding: number,
-	viewport: Viewport,
 ): Promise<CaptureRegion | undefined> {
 	const box = await page.locator(locator).boundingBox();
 	if (!box) {
+		return undefined;
+	}
+	const viewport = page.viewportSize();
+	if (!viewport) {
 		return undefined;
 	}
 	const x = Math.max(0, box.x - padding);
@@ -172,6 +175,9 @@ async function performAction(page: Page, baseUrl: string, action: ScenarioAction
 				await page.mouse.wheel(action.deltaX ?? 0, action.deltaY);
 			}
 			return;
+		case 'resize':
+			await animateViewportResize(page, action.width, action.height, action.durationMs ?? 800);
+			return;
 		case 'waitFor':
 			await page.locator(action.locator).waitFor({ state: action.state, timeout: action.timeoutMs });
 			return;
@@ -179,6 +185,35 @@ async function performAction(page: Page, baseUrl: string, action: ScenarioAction
 			await page.waitForTimeout(action.durationMs);
 			return;
 	}
+}
+
+async function animateViewportResize(page: Page, width: number, height: number, durationMs: number): Promise<void> {
+	const start = page.viewportSize();
+	if (!start || durationMs === 0) {
+		await page.setViewportSize({ width, height });
+		return;
+	}
+	const steps = Math.max(1, Math.min(60, Math.ceil(durationMs / 50)));
+	for (let step = 1; step <= steps; step += 1) {
+		const progress = step / steps;
+		await page.setViewportSize({
+			width: Math.round(start.width + (width - start.width) * progress),
+			height: Math.round(start.height + (height - start.height) * progress),
+		});
+		await page.waitForTimeout(durationMs / steps);
+	}
+}
+
+export function getRecordingSize(viewport: Viewport, scenario: ComparisonScenario): Viewport {
+	return scenario.actions.reduce((size, action) => {
+		if (action.type !== 'resize') {
+			return size;
+		}
+		return {
+			width: Math.max(size.width, action.width),
+			height: Math.max(size.height, action.height),
+		};
+	}, viewport);
 }
 
 async function installCursorOverlay(page: Page): Promise<void> {

@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { getRecordingSize } from '../capture';
 import { expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
 
@@ -32,6 +33,29 @@ suite('Comparison model', () => {
 			}),
 			/requires a locator/,
 		);
+	});
+
+	test('rejects an invalid resize target', () => {
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: { name: 'Invalid resize', actions: [{ type: 'resize', width: 200, height: 844 }] },
+			}),
+			/at least 320 by 240/,
+		);
+	});
+
+	test('keeps a stable canvas large enough for every resize target', () => {
+		assert.deepStrictEqual(getRecordingSize(
+			{ width: 1280, height: 720 },
+			{
+				name: 'Responsive transition',
+				actions: [
+					{ type: 'resize', width: 390, height: 844 },
+					{ type: 'resize', width: 1440, height: 640 },
+				],
+			},
+		), { width: 1440, height: 844 });
 	});
 
 	test('expands every port placeholder', () => {

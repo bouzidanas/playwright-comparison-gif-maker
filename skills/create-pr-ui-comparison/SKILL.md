@@ -16,12 +16,16 @@ Before invoking the tool:
 4. Use `{port}` in the start command and readiness URL. The tool allocates a separate port for each run.
 5. Use stable Playwright locators. Prefer roles with accessible names, labels, text, and test IDs. Avoid generated CSS classes and coordinate clicks.
 6. Include short holds before the first action and after states a reviewer needs to inspect. Keep the full scenario concise.
-7. Choose a viewport that contains the relevant UI without making the subject too small. Start with 1280 by 720 for desktop or an appropriate fixed mobile viewport.
+7. Choose an initial viewport that contains the relevant UI without making the subject too small. Start with 1280 by 720 for desktop or another size supported by the behavior being demonstrated.
 8. Set `focusLocator` when the demonstration concerns one stable region such as a menu bar, dialog, panel, or toolbar. The recorder follows that element's bounds and crops with 16 pixels of padding by default.
 9. Keep `layout` set to `auto` unless the user requests otherwise. Auto is side by side for normal captures and only stacks top and bottom when the focused region is at least three times wider than tall.
 10. Use short Before and After labels. They are rendered inside the outer top corners of the recordings.
 11. Do not include credentials, tokens, private account data, or destructive interactions in a recording.
 
-The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. Add `holdAfterMs` when the resulting state should remain visible.
+Use `resize` whenever changing viewport dimensions is part of the behavior or reproduction. This includes breakpoint changes, fluid reflow, text wrapping, overflow and clipping, fixed or sticky positioning, viewport units, resize observers, canvas sizing, sidebar behavior, and layout stability. Choose start and target sizes that make the specific difference visible. They do not need to cross a CSS media-query breakpoint. Add a short hold before resizing, animate the resize over 600 to 1000 milliseconds when the transition matters, then hold the resulting state. Add another resize when the reverse transition provides useful evidence. Do not add resize actions to comparisons where viewport changes are unrelated.
+
+For a breakpoint-specific change, start on one side of the relevant breakpoint and cross it during the recording instead of showing only a fixed target state. The initial `viewport` and every resize target use the same 320 by 240 minimum and 3840 by 2160 maximum.
+
+The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action accepts `width`, `height`, and optional `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
 
 After the tool returns, report the GIF path, whether the candidate included uncommitted changes, and the exact baseline and candidate SHAs. Remind the user to regenerate after committing and pushing when the candidate was dirty.

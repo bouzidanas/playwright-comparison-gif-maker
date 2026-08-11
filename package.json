@@ -1,8 +1,9 @@
 {
   "name": "pr-ui-compare",
   "displayName": "PR UI Compare",
+  "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -60,7 +61,7 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Creates a labeled Before and After GIF by resolving a baseline Git ref into a detached worktree, starting the baseline and current workspace applications sequentially, replaying the exact same declarative Playwright actions against both, and opening a preview. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
+        "modelDescription": "Creates a labeled Before and After GIF by resolving a baseline Git ref into a detached worktree, starting the baseline and current workspace applications sequentially, replaying the exact same declarative Playwright actions against both, and opening a preview. It can animate viewport resizing for any dimension-dependent behavior, including fluid reflow, overflow, wrapping, resize observers, viewport units, layout stability, and responsive breakpoints. Resize is optional and should only be used when dimensions are relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
         "userDescription": "Record the same UI scenario before and after the current changes.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
@@ -162,6 +163,7 @@
                           "fill",
                           "press",
                           "scroll",
+                          "resize",
                           "waitFor",
                           "hold"
                         ]
@@ -184,6 +186,18 @@
                       },
                       "deltaY": {
                         "type": "number"
+                      },
+                      "width": {
+                        "type": "number",
+                        "minimum": 320,
+                        "maximum": 3840,
+                        "description": "Target viewport width for a resize action."
+                      },
+                      "height": {
+                        "type": "number",
+                        "minimum": 240,
+                        "maximum": 2160,
+                        "description": "Target viewport height for a resize action."
                       },
                       "state": {
                         "type": "string",

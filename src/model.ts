@@ -20,6 +20,7 @@ export type ScenarioAction =
 	| { type: 'fill'; locator: string; value: string; holdAfterMs?: number }
 	| { type: 'press'; locator: string; key: string; holdAfterMs?: number }
 	| { type: 'scroll'; locator?: string; deltaX?: number; deltaY: number; holdAfterMs?: number }
+	| { type: 'resize'; width: number; height: number; durationMs?: number; holdAfterMs?: number }
 	| { type: 'waitFor'; locator: string; state?: 'attached' | 'detached' | 'visible' | 'hidden'; timeoutMs?: number; holdAfterMs?: number }
 	| { type: 'hold'; durationMs: number };
 
@@ -93,12 +94,7 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	}
 
 	const viewport = request.viewport ?? { width: 1280, height: 720 };
-	if (viewport.width < 320 || viewport.height < 240) {
-		throw new Error('The viewport must be at least 320 by 240 pixels.');
-	}
-	if (viewport.width > 3840 || viewport.height > 2160) {
-		throw new Error('The viewport cannot exceed 3840 by 2160 pixels.');
-	}
+	validateViewport(viewport, 'The viewport');
 }
 
 function validateAction(action: ScenarioAction, index: number): void {
@@ -136,6 +132,12 @@ function validateAction(action: ScenarioAction, index: number): void {
 				invalid('requires a numeric deltaY.');
 			}
 			return;
+		case 'resize':
+			validateViewport(action, `Scenario action ${index + 1} resize`);
+			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
+				invalid('requires durationMs between 0 and 10000.');
+			}
+			return;
 		case 'waitFor':
 			if (!action.locator?.trim()) {
 				invalid('requires a locator.');
@@ -153,4 +155,13 @@ function validateAction(action: ScenarioAction, index: number): void {
 
 export function expandPortTemplate(value: string, port: number): string {
 	return value.replaceAll('{port}', String(port));
+}
+
+function validateViewport(viewport: Viewport, subject: string): void {
+	if (!Number.isFinite(viewport.width) || !Number.isFinite(viewport.height) || viewport.width < 320 || viewport.height < 240) {
+		throw new Error(`${subject} must be at least 320 by 240 pixels.`);
+	}
+	if (viewport.width > 3840 || viewport.height > 2160) {
+		throw new Error(`${subject} cannot exceed 3840 by 2160 pixels.`);
+	}
 }

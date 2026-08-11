@@ -24,7 +24,7 @@ The intended workflow is straightforward. Implement and test a visible UI change
 - The package manager and runtime required by the application
 - Playwright-managed Chromium
 
-Run **PR UI Compare: Install Managed Chromium** once after installing the extension. The browser is stored in Playwright's user cache. The extension does not launch Google Chrome from `/Applications` by default.
+Run **PR UI Compare: Install Managed Chromium** once after installing the extension. The headless browser shell is stored in Playwright's user cache. Each Playwright version requires a matching browser revision, but the extension does not install the larger headed Chromium build or launch Google Chrome from `/Applications` by default.
 
 PR UI Compare packages FFmpeg, so a separate media encoder is not required.
 
@@ -40,7 +40,21 @@ The contributed skill tells the agent to inspect project scripts and lockfiles, 
 
 Set `focusLocator` for a stable region such as `role=navigation`, `data-testid=menu-bar`, or `#settings-panel`. Auto layout remains side by side for ordinary desktop and mobile captures. A region such as a full-width menu bar switches to top and bottom when its aspect ratio reaches 3:1.
 
-Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
+Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
+
+Use resize actions whenever viewport dimensions are part of the behavior being demonstrated. This includes breakpoint changes, fluid reflow, text wrapping, overflow, sticky or fixed positioning, viewport units, resize observers, canvas sizing, sidebars, and layout stability. Resize is optional and should not be added to unrelated comparisons.
+
+A resize action animates the page viewport while the recording canvas remains fixed at the largest dimensions used by the scenario. The sizes do not need to cross a CSS breakpoint:
+
+```json
+[
+	{ "type": "hold", "durationMs": 500 },
+	{ "type": "resize", "width": 390, "height": 844, "durationMs": 800, "holdAfterMs": 1200 },
+	{ "type": "resize", "width": 1280, "height": 720, "durationMs": 800, "holdAfterMs": 800 }
+]
+```
+
+For breakpoint fixes, start on one side of the breakpoint and cross it during the recording rather than showing only a fixed mobile or desktop state.
 
 ## Manual usage
 

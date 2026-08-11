@@ -33,9 +33,11 @@ suite('Comparison runner end to end', function () {
 				focusLocator: '#toolbar',
 				focusPadding: 8,
 				scenario: {
-					name: 'Panel width fix',
+					name: 'Responsive panel fix',
 					actions: [
 						{ type: 'hold', durationMs: 300 },
+						{ type: 'resize', width: 360, height: 480, durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 640, height: 480, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'click', locator: 'role=button[name="Toggle panel"]', holdAfterMs: 700 },
 					],
 				},
@@ -54,8 +56,8 @@ suite('Comparison runner end to end', function () {
 			const session = JSON.parse(await readFile(path.join(result.sessionDirectory, 'session.json'), 'utf8')) as {
 				timings: { before: unknown[]; after: unknown[] };
 			};
-			assert.strictEqual(session.timings.before.length, 2);
-			assert.strictEqual(session.timings.after.length, 2);
+			assert.strictEqual(session.timings.before.length, 4);
+			assert.strictEqual(session.timings.after.length, 4);
 			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
 		} finally {
 			output.dispose();
@@ -93,6 +95,10 @@ button { font: inherit; padding: 10px 16px; }
 #toolbar { align-items: center; background: ${panelColor}; color: white; display: flex; gap: 24px; height: 52px; padding: 0 12px; width: 540px; }
 #panel { background: ${panelColor}; color: white; height: 180px; margin-top: 20px; padding: 20px; transition: width 200ms; width: 100px; }
 #panel.open { width: ${panelWidth}; }
+@media (max-width: 480px) {
+	#toolbar { width: calc(100vw - 104px); }
+	#panel.open { width: calc(100vw - 120px); }
+}
 </style></head>
 <body>
 <div id="toolbar"><button aria-label="Toggle panel" onclick="document.getElementById('panel').classList.toggle('open')">Toggle panel</button><span>Project navigation</span></div>

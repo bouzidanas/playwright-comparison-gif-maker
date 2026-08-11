@@ -8,7 +8,7 @@ export async function installManagedChromium(
 ): Promise<void> {
 	const playwrightCli = path.join(path.dirname(require.resolve('playwright-core')), 'cli.js');
 	await new Promise<void>((resolve, reject) => {
-		const child = spawn(process.execPath, [playwrightCli, 'install', 'chromium'], {
+		const child = spawn(process.execPath, [playwrightCli, 'install', '--only-shell', 'chromium'], {
 			env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
 			windowsHide: true,
 		});
