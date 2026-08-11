@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { getRecordingSize } from '../capture';
+import { getRecordingSize, INITIAL_POINTER_STYLE } from '../capture';
 import { expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
 
@@ -16,6 +16,14 @@ suite('Comparison model', () => {
 
 	test('accepts a complete request', () => {
 		assert.doesNotThrow(() => validateComparisonRequest(validRequest));
+	});
+
+	test('starts the synthetic pointer outside the visible page', () => {
+		assert.deepStrictEqual(INITIAL_POINTER_STYLE, {
+			left: '-32px',
+			opacity: '0',
+			top: '-32px',
+		});
 	});
 
 	test('rejects an empty scenario', () => {

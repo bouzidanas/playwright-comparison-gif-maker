@@ -3,6 +3,12 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright-core
 import * as vscode from 'vscode';
 import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, Viewport, ZoomCue } from './model';
 
+export const INITIAL_POINTER_STYLE = {
+	left: '-32px',
+	opacity: '0',
+	top: '-32px',
+} as const;
+
 export async function captureScenario(
 	baseUrl: string,
 	route: string | undefined,
@@ -267,7 +273,7 @@ export function getRecordingSize(viewport: Viewport, scenario: ComparisonScenari
 }
 
 async function installCursorOverlay(page: Page): Promise<void> {
-	await page.evaluate(() => {
+	await page.evaluate(initialPointerStyle => {
 		if (document.querySelector('[data-pr-ui-compare-cursor]')) {
 			return;
 		}
@@ -279,17 +285,18 @@ async function installCursorOverlay(page: Page): Promise<void> {
 			borderRadius: '50%',
 			boxShadow: '0 1px 4px rgb(0 0 0 / 45%)',
 			height: '16px',
-			left: '12px',
+			left: initialPointerStyle.left,
+			opacity: initialPointerStyle.opacity,
 			pointerEvents: 'none',
 			position: 'fixed',
-			top: '12px',
+			top: initialPointerStyle.top,
 			transform: 'translate(-50%, -50%)',
-			transition: 'left 180ms ease, top 180ms ease',
+			transition: 'left 180ms ease, top 180ms ease, opacity 120ms ease',
 			width: '16px',
 			zIndex: '2147483647',
 		});
 		document.documentElement.appendChild(cursor);
-	});
+	}, INITIAL_POINTER_STYLE);
 }
 
 async function moveCursorTo(locator: Locator): Promise<void> {
@@ -301,8 +308,18 @@ async function moveCursorTo(locator: Locator): Promise<void> {
 	await locator.page().evaluate(({ x, y }) => {
 		const cursor = document.querySelector<HTMLElement>('[data-pr-ui-compare-cursor]');
 		if (cursor) {
+			const firstAppearance = cursor.dataset.visible !== 'true';
+			if (firstAppearance) {
+				cursor.style.transition = 'none';
+			}
 			cursor.style.left = `${x}px`;
 			cursor.style.top = `${y}px`;
+			if (firstAppearance) {
+				cursor.getBoundingClientRect();
+				cursor.dataset.visible = 'true';
+				cursor.style.transition = 'left 180ms ease, top 180ms ease, opacity 120ms ease';
+				cursor.style.opacity = '1';
+			}
 		}
 	}, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
 	await locator.page().waitForTimeout(200);

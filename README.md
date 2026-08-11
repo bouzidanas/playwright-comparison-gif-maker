@@ -10,6 +10,7 @@ The intended workflow is straightforward. Implement and test a visible UI change
 - Creates a detached temporary Git worktree without changing the current workspace.
 - Starts Before and After applications sequentially on separate dynamic ports.
 - Replays one declarative Playwright scenario against both applications.
+- Keeps the synthetic pointer out of view unless a click or hover action uses it.
 - Tracks an optional focused element throughout the scenario and crops to its padded bounds.
 - Keeps normal comparisons side by side.
 - Automatically stacks top and bottom only when a focused region is at least three times wider than tall.

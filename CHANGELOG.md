@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-08-10
+
+- Kept the synthetic pointer hidden until the first pointer interaction.
+
 ## [0.0.7] - 2026-08-10
 
 - Added left, right, and centered resize anchoring plus configurable border color and label corners.
