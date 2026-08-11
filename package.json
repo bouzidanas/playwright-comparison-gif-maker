@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -265,14 +265,14 @@
                         "maximum": 2160,
                         "description": "Target viewport height for a resize action."
                       },
-                      "movingEdge": {
+                      "resizeMode": {
                         "type": "string",
                         "enum": [
-                          "left",
-                          "right",
-                          "both"
+                          "keep-left-edge-fixed",
+                          "keep-right-edge-fixed",
+                          "keep-window-centered"
                         ],
-                        "description": "Required for resize. This names the visibly moving edge, not the fixed edge. Use left to make the left edge slide horizontally while the right edge stays fixed. Use right to make the right edge slide while the left edge stays fixed. Use both to move both edges equally and keep the page centered."
+                        "description": "Required for resize. Choose the outcome directly. keep-left-edge-fixed means only the right edge moves. keep-right-edge-fixed means only the left edge moves. keep-window-centered means both edges move simultaneously at the same rate and the window remains horizontally centered. For a shrink where the left edge must slide right and the right edge must not move, use keep-right-edge-fixed."
                       },
                       "scale": {
                         "type": "number",
@@ -315,7 +315,7 @@
                           "required": [
                             "width",
                             "height",
-                            "movingEdge"
+                            "resizeMode"
                           ]
                         }
                       }

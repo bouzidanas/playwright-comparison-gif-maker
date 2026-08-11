@@ -92,18 +92,18 @@ A resize action animates the page viewport while the recording canvas remains fi
 ```json
 [
 	{ "type": "hold", "durationMs": 500 },
-	{ "type": "resize", "width": 390, "height": 844, "movingEdge": "left", "durationMs": 800, "holdAfterMs": 1200 },
-	{ "type": "resize", "width": 1280, "height": 720, "movingEdge": "left", "durationMs": 800, "holdAfterMs": 800 }
+	{ "type": "resize", "width": 390, "height": 844, "resizeMode": "keep-right-edge-fixed", "durationMs": 800, "holdAfterMs": 1200 },
+	{ "type": "resize", "width": 1280, "height": 720, "resizeMode": "keep-right-edge-fixed", "durationMs": 800, "holdAfterMs": 800 }
 ]
 ```
 
-Set `movingEdge` on every resize action. It names the edge that visibly moves, not the edge that stays fixed:
+Set `resizeMode` on every resize action. Each value directly names the invariant:
 
-- `movingEdge: "right"` keeps the left edge fixed while the right edge moves.
-- `movingEdge: "left"` keeps the right edge fixed while the left edge moves.
-- `movingEdge: "both"` moves both edges equally so the page remains centered.
+- `resizeMode: "keep-left-edge-fixed"` allows only the right edge to move.
+- `resizeMode: "keep-right-edge-fixed"` allows only the left edge to move.
+- `resizeMode: "keep-window-centered"` moves both edges simultaneously at the same rate.
 
-Older `anchor` payloads remain accepted for compatibility but are no longer exposed to agents.
+For example, use `keep-right-edge-fixed` when shrinking must slide the left edge right without moving the right edge. Older `movingEdge` and `anchor` payloads remain accepted for compatibility but are no longer exposed to agents.
 
 For breakpoint fixes, start on one side of the breakpoint and cross it during the recording rather than showing only a fixed mobile or desktop state.
 

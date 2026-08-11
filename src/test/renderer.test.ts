@@ -37,7 +37,7 @@ suite('Comparison renderer', function () {
 					actionIndex: 1,
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
-					movingEdge: 'both' as const,
+					resizeMode: 'keep-window-centered' as const,
 					durationMs: 300,
 				},
 			];
@@ -106,7 +106,7 @@ suite('Comparison renderer', function () {
 		assert.strictEqual(DEFAULT_ANIMATION_FRAME_RATE, 24);
 	});
 
-	test('places a shrinking page from the left, right, or both edges', async () => {
+	test('keeps the selected edge fixed or keeps the window centered throughout resize', async () => {
 		if (!ffmpegPath) {
 			assert.fail('No FFmpeg binary is available for renderer tests.');
 		}
@@ -117,20 +117,20 @@ suite('Comparison renderer', function () {
 			await createVideo(ffmpegPath, before, '0xc84b31');
 			await createVideo(ffmpegPath, after, '0x2e7d5b');
 			const timings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
-			for (const movingEdge of ['left', 'right', 'both'] as const) {
+			for (const resizeMode of ['keep-right-edge-fixed', 'keep-left-edge-fixed', 'keep-window-centered'] as const) {
 				const resizeCues = [{
 					actionIndex: 0,
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
-					movingEdge,
+					resizeMode,
 					durationMs: 800,
 				}];
-				const anchorDirectory = path.join(directory, movingEdge);
-				await mkdir(anchorDirectory);
+				const modeDirectory = path.join(directory, resizeMode);
+				await mkdir(modeDirectory);
 				const rendered = await renderComparisonGif(
 					before,
 					after,
-					anchorDirectory,
+					modeDirectory,
 					'Before',
 					'After',
 					{ width: 640, height: 480 },
@@ -158,27 +158,27 @@ suite('Comparison renderer', function () {
 				const centerPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 243, 200);
 				const rightPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 470, 200);
 				const middleBounds = await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, 9, 200);
-				if (movingEdge === 'left') {
+				if (resizeMode === 'keep-right-edge-fixed') {
 					const initialLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 0, 20, 200);
 					const middleLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 9, 20, 200);
 					const middleRightPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 9, 470, 200);
-					assert.ok(isContent(initialLeftPixel), `${movingEdge} initial left pixel ${initialLeftPixel}`);
-					assert.ok(isBackground(middleLeftPixel), `${movingEdge} middle left pixel ${middleLeftPixel}`);
-					assert.ok(isContent(middleRightPixel), `${movingEdge} middle right pixel ${middleRightPixel}`);
+					assert.ok(isContent(initialLeftPixel), `${resizeMode} initial left pixel ${initialLeftPixel}`);
+					assert.ok(isBackground(middleLeftPixel), `${resizeMode} middle left pixel ${middleLeftPixel}`);
+					assert.ok(isContent(middleRightPixel), `${resizeMode} middle right pixel ${middleRightPixel}`);
 					assert.ok(middleBounds.max >= 480, `left motion moved the fixed right edge to ${middleBounds.max}`);
-					assert.ok(isBackground(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
-					assert.ok(isContent(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
-				} else if (movingEdge === 'right') {
+					assert.ok(isBackground(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
+					assert.ok(isContent(rightPixel), `${resizeMode} right pixel ${rightPixel}`);
+				} else if (resizeMode === 'keep-left-edge-fixed') {
 					assert.ok(middleBounds.min <= 5, `right motion moved the fixed left edge to ${middleBounds.min}`);
-					assert.ok(isContent(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
-					assert.ok(isBackground(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
+					assert.ok(isContent(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
+					assert.ok(isBackground(rightPixel), `${resizeMode} right pixel ${rightPixel}`);
 				} else {
 					const leftSpace = middleBounds.min - 3;
 					const rightSpace = 482 - middleBounds.max;
 					assert.ok(Math.abs(leftSpace - rightSpace) <= 3, `centered motion spaces differ: ${leftSpace} and ${rightSpace}`);
-					assert.ok(isBackground(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
-					assert.ok(isContent(centerPixel), `${movingEdge} center pixel ${centerPixel}`);
-					assert.ok(isBackground(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
+					assert.ok(isBackground(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
+					assert.ok(isContent(centerPixel), `${resizeMode} center pixel ${centerPixel}`);
+					assert.ok(isBackground(rightPixel), `${resizeMode} right pixel ${rightPixel}`);
 				}
 			}
 		} finally {

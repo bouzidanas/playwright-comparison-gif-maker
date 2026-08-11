@@ -85,13 +85,13 @@ suite('Comparison model', () => {
 		assert.throws(
 			() => validateComparisonRequest({
 				...validRequest,
-				scenario: { name: 'Invalid resize', actions: [{ type: 'resize', width: 200, height: 844, movingEdge: 'left' }] },
+				scenario: { name: 'Invalid resize', actions: [{ type: 'resize', width: 200, height: 844, resizeMode: 'keep-right-edge-fixed' }] },
 			}),
 			/at least 320 by 240/,
 		);
 	});
 
-	test('requires an explicit moving edge for every resize', () => {
+	test('requires an explicit fixed-edge outcome for every resize', () => {
 		assert.throws(
 			() => validateComparisonRequest({
 				...validRequest,
@@ -100,8 +100,30 @@ suite('Comparison model', () => {
 					actions: [{ type: 'resize', width: 640, height: 480 } as never],
 				},
 			}),
-			/requires movingEdge/,
+			/requires resizeMode/,
 		);
+	});
+
+	test('accepts each fixed-edge resize outcome', () => {
+		for (const resizeMode of ['keep-left-edge-fixed', 'keep-right-edge-fixed', 'keep-window-centered'] as const) {
+			assert.doesNotThrow(() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: resizeMode,
+					actions: [{ type: 'resize', width: 640, height: 480, resizeMode }],
+				},
+			}));
+		}
+	});
+
+	test('accepts saved scenarios that use the legacy moving edge', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({
+			...validRequest,
+			scenario: {
+				name: 'Saved resize',
+				actions: [{ type: 'resize', width: 640, height: 480, movingEdge: 'left' }],
+			},
+		}));
 	});
 
 	test('rejects invalid visual customization values', () => {
@@ -127,6 +149,16 @@ suite('Comparison model', () => {
 			}),
 			/unsupported legacy anchor/,
 		);
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Invalid resize mode',
+					actions: [{ type: 'resize', width: 640, height: 480, resizeMode: 'move-left' as never }],
+				},
+			}),
+			/unsupported resizeMode/,
+		);
 	});
 
 	test('rejects zoom magnification without a target', () => {
@@ -145,8 +177,8 @@ suite('Comparison model', () => {
 			{
 				name: 'Responsive transition',
 				actions: [
-					{ type: 'resize', width: 390, height: 844, movingEdge: 'left' },
-					{ type: 'resize', width: 1440, height: 640, movingEdge: 'left' },
+					{ type: 'resize', width: 390, height: 844, resizeMode: 'keep-right-edge-fixed' },
+					{ type: 'resize', width: 1440, height: 640, resizeMode: 'keep-right-edge-fixed' },
 				],
 			},
 		), { width: 1440, height: 844 });

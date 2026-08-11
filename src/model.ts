@@ -14,7 +14,8 @@ export type ComparisonLayout = 'auto' | 'horizontal' | 'vertical';
 export type ResolvedComparisonLayout = Exclude<ComparisonLayout, 'auto'>;
 export type ComparisonOutputMode = 'animation' | 'image';
 export type BrowserColorScheme = 'light' | 'dark' | 'system';
-export type ResizeMovingEdge = 'left' | 'right' | 'both';
+export type ResizeMode = 'keep-left-edge-fixed' | 'keep-right-edge-fixed' | 'keep-window-centered';
+type LegacyResizeMovingEdge = 'left' | 'right' | 'both';
 export type LabelAlignment = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 type ResizeAction = {
@@ -24,8 +25,9 @@ type ResizeAction = {
 	durationMs?: number;
 	holdAfterMs?: number;
 } & (
-	{ movingEdge: ResizeMovingEdge; anchor?: never }
-	| { movingEdge?: never; anchor: ResizeMovingEdge }
+	{ resizeMode: ResizeMode; movingEdge?: never; anchor?: never }
+	| { resizeMode?: never; movingEdge: LegacyResizeMovingEdge; anchor?: never }
+	| { resizeMode?: never; movingEdge?: never; anchor: LegacyResizeMovingEdge }
 );
 
 export type ScenarioAction =
@@ -86,7 +88,7 @@ export interface ResizeCue {
 	actionIndex: number;
 	from: Viewport;
 	to: Viewport;
-	movingEdge: ResizeMovingEdge;
+	resizeMode: ResizeMode;
 	durationMs: number;
 }
 
@@ -243,9 +245,16 @@ function validateAction(action: ScenarioAction, index: number): void {
 			return;
 		case 'resize':
 			validateViewport(action, `Scenario action ${index + 1} resize`);
-			const resizeAction = action as { movingEdge?: ResizeMovingEdge; anchor?: ResizeMovingEdge };
-			if (!resizeAction.movingEdge && !resizeAction.anchor) {
-				invalid('requires movingEdge to be left, right, or both.');
+			const resizeAction = action as {
+				resizeMode?: ResizeMode;
+				movingEdge?: LegacyResizeMovingEdge;
+				anchor?: LegacyResizeMovingEdge;
+			};
+			if (!resizeAction.resizeMode && !resizeAction.movingEdge && !resizeAction.anchor) {
+				invalid('requires resizeMode to keep-left-edge-fixed, keep-right-edge-fixed, or keep-window-centered.');
+			}
+			if (resizeAction.resizeMode && !['keep-left-edge-fixed', 'keep-right-edge-fixed', 'keep-window-centered'].includes(resizeAction.resizeMode)) {
+				invalid(`has unsupported resizeMode "${resizeAction.resizeMode}".`);
 			}
 			if (resizeAction.movingEdge && !['left', 'right', 'both'].includes(resizeAction.movingEdge)) {
 				invalid(`has unsupported movingEdge "${resizeAction.movingEdge}".`);
@@ -253,8 +262,8 @@ function validateAction(action: ScenarioAction, index: number): void {
 			if (resizeAction.anchor && !['left', 'right', 'both'].includes(resizeAction.anchor)) {
 				invalid(`has unsupported legacy anchor "${resizeAction.anchor}".`);
 			}
-			if (resizeAction.movingEdge && resizeAction.anchor && resizeAction.movingEdge !== resizeAction.anchor) {
-				invalid('has conflicting movingEdge and legacy anchor values.');
+			if ([resizeAction.resizeMode, resizeAction.movingEdge, resizeAction.anchor].filter(Boolean).length > 1) {
+				invalid('must set only resizeMode, without legacy movingEdge or anchor values.');
 			}
 			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
 				invalid('requires durationMs between 0 and 10000.');

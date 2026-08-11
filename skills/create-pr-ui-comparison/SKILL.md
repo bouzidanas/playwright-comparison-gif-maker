@@ -38,7 +38,15 @@ Before invoking the tool:
 
 Use `resize` whenever changing viewport dimensions is part of the behavior or reproduction. This includes breakpoint changes, fluid reflow, text wrapping, overflow and clipping, fixed or sticky positioning, viewport units, resize observers, canvas sizing, sidebar behavior, and layout stability. Choose start and target sizes that make the specific difference visible. They do not need to cross a CSS media-query breakpoint. Add a short hold before resizing, animate the resize over 600 to 1000 milliseconds when the transition matters, then hold the resulting state. Add another resize when the reverse transition provides useful evidence. Do not add resize actions to comparisons where viewport changes are unrelated.
 
-Every resize action must set `movingEdge`. This names the edge that visibly moves, not the edge that stays fixed. Set `movingEdge` to `left` when the user wants the left edge to slide right during a shrink while the right edge stays fixed. Set it to `right` when the user wants the right edge to slide left while the left edge stays fixed. Set it to `both` to move both edges equally and keep the page centered. Never omit `movingEdge`, and do not infer its meaning from the word anchor.
+Every resize action must set `resizeMode`. Choose the mode from the edge that must remain fixed, not from an isolated direction word. Use `keep-left-edge-fixed` when only the right edge should move. Use `keep-right-edge-fixed` when only the left edge should move. Use `keep-window-centered` when both edges should move simultaneously at the same rate and the window should remain horizontally centered.
+
+Translate common requests literally:
+
+- "Slide the left edge right and keep the right edge fixed" means `resizeMode: keep-right-edge-fixed`.
+- "Slide the right edge left and keep the left edge fixed" means `resizeMode: keep-left-edge-fixed`.
+- "Resize from both sides at the same rate" means `resizeMode: keep-window-centered`.
+
+Never omit `resizeMode`. Before invoking the tool, verify that the fixed edge named by the selected mode is the fixed edge requested by the user.
 
 For a breakpoint-specific change, start on one side of the relevant breakpoint and cross it during the recording instead of showing only a fixed target state. The initial `viewport` and every resize target use the same 320 by 240 minimum and 3840 by 2160 maximum.
 
@@ -46,6 +54,6 @@ Use `zoom` sparingly to orient viewers before a detailed interaction or to draw 
 
 Use `borderColor` when the user requests a frame or accent color. It must be a six-digit hex color. The default is GitHub dark border `#30363d`, which is also used for unused canvas revealed by resize movement. Set `beforeLabelAlignment` and `afterLabelAlignment` independently to any corner. Defaults place the Before label at `top-left` and the After label at `top-right`, keeping labels on the outer corners for both side-by-side and top-and-bottom layouts.
 
-The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action requires `width`, `height`, and `movingEdge`, and accepts an optional `durationMs`. A zoom action accepts an optional `locator`, `scale`, and `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
+The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action requires `width`, `height`, and `resizeMode`, and accepts an optional `durationMs`. A zoom action accepts an optional `locator`, `scale`, and `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
 
 After the tool returns, report the GIF path, whether the candidate included uncommitted changes, and the exact baseline and candidate SHAs. Remind the user to regenerate after committing and pushing when the candidate was dirty.

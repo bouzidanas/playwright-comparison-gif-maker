@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.15] - 2026-08-11
+
+- Replaced directional resize configuration with `keep-left-edge-fixed`, `keep-right-edge-fixed`, and `keep-window-centered` outcomes so agents can match the requested invariant directly.
+- Kept older `movingEdge` and `anchor` scenarios compatible without exposing those ambiguous fields to agents.
+
 ## [0.0.14] - 2026-08-11
 
 - Replaced the ambiguous agent-facing resize anchor with a required `movingEdge` value for left, right, or simultaneous movement.

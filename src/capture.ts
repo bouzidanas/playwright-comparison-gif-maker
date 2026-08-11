@@ -168,11 +168,21 @@ async function replayScenario(
 			if (!from) {
 				throw new Error('The browser viewport is unavailable before resize.');
 			}
+			const resizeAction = action as {
+				resizeMode?: ResizeCue['resizeMode'];
+				movingEdge?: 'left' | 'right' | 'both';
+				anchor?: 'left' | 'right' | 'both';
+			};
+			const legacyMovingEdge = resizeAction.movingEdge ?? resizeAction.anchor;
 			resizeCues.push({
 				actionIndex: index,
 				from,
 				to: { width: action.width, height: action.height },
-				movingEdge: action.movingEdge ?? action.anchor ?? 'right',
+				resizeMode: resizeAction.resizeMode ?? (legacyMovingEdge === 'left'
+					? 'keep-right-edge-fixed'
+					: legacyMovingEdge === 'both'
+						? 'keep-window-centered'
+						: 'keep-left-edge-fixed'),
 				durationMs: action.durationMs ?? 800,
 			});
 		}

@@ -372,10 +372,10 @@ function createStaticPane(
 	const geometry = resolvePaneGeometry(region, recordingSize, layout);
 	const finalResize = resizeCues.at(-1);
 	const finalViewport = finalResize?.to ?? recordingSize;
-	const movingEdge = finalResize?.movingEdge ?? 'right';
-	const offsetX = movingEdge === 'left'
+	const resizeMode = finalResize?.resizeMode ?? 'keep-left-edge-fixed';
+	const offsetX = resizeMode === 'keep-right-edge-fixed'
 		? recordingSize.width - finalViewport.width
-		: movingEdge === 'both'
+		: resizeMode === 'keep-window-centered'
 			? (recordingSize.width - finalViewport.width) / 2
 			: 0;
 	const placement = region
@@ -439,7 +439,7 @@ function synchronizeTimeline(
 	const resizeCueMap = new Map(resizeCues.map(cue => [cue.actionIndex, cue]));
 	const cues = new Map(zoomCues.map(cue => [cue.actionIndex, cue]));
 	let viewport = resizeCues[0]?.from ?? recordingSize;
-	let movingEdge: ResizeCue['movingEdge'] = 'right';
+	let resizeMode: ResizeCue['resizeMode'] = 'keep-left-edge-fixed';
 	let camera: CameraState = {
 		scale: 1,
 		centerX: geometry.base.width / 2,
@@ -474,7 +474,7 @@ function synchronizeTimeline(
 				index,
 				viewport,
 				resizeCue?.to ?? viewport,
-				resizeCue?.movingEdge ?? movingEdge,
+				resizeCue?.resizeMode ?? resizeMode,
 				resizeTransitionMs,
 				targetDurations[index],
 				recordingSize,
@@ -482,7 +482,7 @@ function synchronizeTimeline(
 				frameRate,
 			);
 		const cue = cues.get(index);
-		const cameraOffsetX = region ? 0 : resolveResizeOffset(viewport, movingEdge, recordingSize.width);
+		const cameraOffsetX = region ? 0 : resolveResizeOffset(viewport, resizeMode, recordingSize.width);
 		const nextCamera = cue ? resolveCameraState(cue, geometry, cameraOffsetX) : camera;
 		const transitionMs = cue
 			? Math.min(cue.durationMs, duration(timing)) * rate
@@ -497,7 +497,7 @@ function synchronizeTimeline(
 		filters.push(`${placedSegment}${transforms}${segment}`);
 		if (resizeCue) {
 			viewport = resizeCue.to;
-			movingEdge = resizeCue.movingEdge;
+			resizeMode = resizeCue.resizeMode;
 		}
 		camera = nextCamera;
 		return segment;
@@ -507,9 +507,9 @@ function synchronizeTimeline(
 	return { filters, output };
 }
 
-function resolveResizeOffset(viewport: Viewport, movingEdge: ResizeCue['movingEdge'], recordingWidth: number): number {
+function resolveResizeOffset(viewport: Viewport, resizeMode: ResizeCue['resizeMode'], recordingWidth: number): number {
 	const slack = recordingWidth - viewport.width;
-	return movingEdge === 'left' ? slack : movingEdge === 'both' ? slack / 2 : 0;
+	return resizeMode === 'keep-right-edge-fixed' ? slack : resizeMode === 'keep-window-centered' ? slack / 2 : 0;
 }
 
 function createResizePlacementFilters(
@@ -519,14 +519,14 @@ function createResizePlacementFilters(
 	index: number,
 	start: Viewport,
 	end: Viewport,
-	movingEdge: ResizeCue['movingEdge'],
+	resizeMode: ResizeCue['resizeMode'],
 	transitionMs: number,
 	segmentDurationMs: number,
 	recordingSize: Viewport,
 	backgroundColor: string,
 	frameRate: number,
 ): string {
-	if (movingEdge === 'right' && start.width === recordingSize.width && end.width === recordingSize.width) {
+	if (resizeMode === 'keep-left-edge-fixed' && start.width === recordingSize.width && end.width === recordingSize.width) {
 		return input;
 	}
 	const transitionSeconds = transitionMs / 1000;
@@ -535,7 +535,7 @@ function createResizePlacementFilters(
 	const width = interpolate(start.width, end.width, eased);
 	const height = interpolate(start.height, end.height, eased);
 	const slack = `${recordingSize.width}-(${width})`;
-	const offset = movingEdge === 'left' ? slack : movingEdge === 'both' ? `(${slack})/2` : '0';
+	const offset = resizeMode === 'keep-right-edge-fixed' ? slack : resizeMode === 'keep-window-centered' ? `(${slack})/2` : '0';
 	const rightMask = `[${prefix}RightMask${index}]`;
 	const bottomMask = `[${prefix}BottomMask${index}]`;
 	const rightCleaned = `[${prefix}RightCleaned${index}]`;
