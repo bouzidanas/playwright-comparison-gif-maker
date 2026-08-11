@@ -38,8 +38,8 @@ suite('Comparison runner end to end', function () {
 					name: 'Responsive panel fix',
 					actions: [
 						{ type: 'hold', durationMs: 300 },
-						{ type: 'resize', width: 360, height: 480, anchor: 'both', durationMs: 500, holdAfterMs: 300 },
-						{ type: 'resize', width: 640, height: 480, durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 360, height: 480, movingEdge: 'left', durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 640, height: 480, movingEdge: 'left', durationMs: 500, holdAfterMs: 300 },
 						{ type: 'zoom', locator: 'role=button[name="Toggle panel"]', scale: 1.8, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'click', locator: 'role=button[name="Toggle panel"]', holdAfterMs: 700 },
 						{ type: 'zoom', scale: 1, durationMs: 500, holdAfterMs: 300 },

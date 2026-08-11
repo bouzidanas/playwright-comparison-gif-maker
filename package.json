@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -265,14 +265,14 @@
                         "maximum": 2160,
                         "description": "Target viewport height for a resize action."
                       },
-                      "anchor": {
+                      "movingEdge": {
                         "type": "string",
                         "enum": [
                           "left",
                           "right",
                           "both"
                         ],
-                        "description": "Edge or edges that move during resize. right keeps the left edge fixed, left keeps the right edge fixed, and both moves both edges equally so the page remains centered. Defaults to right."
+                        "description": "Required for resize. This names the visibly moving edge, not the fixed edge. Use left to make the left edge slide horizontally while the right edge stays fixed. Use right to make the right edge slide while the left edge stays fixed. Use both to move both edges equally and keep the page centered."
                       },
                       "scale": {
                         "type": "number",
@@ -301,6 +301,24 @@
                     },
                     "required": [
                       "type"
+                    ],
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "type": {
+                              "const": "resize"
+                            }
+                          }
+                        },
+                        "then": {
+                          "required": [
+                            "width",
+                            "height",
+                            "movingEdge"
+                          ]
+                        }
+                      }
                     ]
                   }
                 }

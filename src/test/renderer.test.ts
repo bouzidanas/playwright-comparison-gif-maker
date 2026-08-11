@@ -37,7 +37,7 @@ suite('Comparison renderer', function () {
 					actionIndex: 1,
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
-					anchor: 'both' as const,
+					movingEdge: 'both' as const,
 					durationMs: 300,
 				},
 			];
@@ -117,15 +117,15 @@ suite('Comparison renderer', function () {
 			await createVideo(ffmpegPath, before, '0xc84b31');
 			await createVideo(ffmpegPath, after, '0x2e7d5b');
 			const timings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
-			for (const anchor of ['left', 'right', 'both'] as const) {
+			for (const movingEdge of ['left', 'right', 'both'] as const) {
 				const resizeCues = [{
 					actionIndex: 0,
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
-					anchor,
+					movingEdge,
 					durationMs: 800,
 				}];
-				const anchorDirectory = path.join(directory, anchor);
+				const anchorDirectory = path.join(directory, movingEdge);
 				await mkdir(anchorDirectory);
 				const rendered = await renderComparisonGif(
 					before,
@@ -157,16 +157,28 @@ suite('Comparison renderer', function () {
 				const leftPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 20, 200);
 				const centerPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 243, 200);
 				const rightPixel = await readGifPixel(ffmpegPath, rendered.beforeGifPath, 470, 200);
-				if (anchor === 'left') {
-					assert.ok(isBackground(leftPixel), `${anchor} left pixel ${leftPixel}`);
-					assert.ok(isContent(rightPixel), `${anchor} right pixel ${rightPixel}`);
-				} else if (anchor === 'right') {
-					assert.ok(isContent(leftPixel), `${anchor} left pixel ${leftPixel}`);
-					assert.ok(isBackground(rightPixel), `${anchor} right pixel ${rightPixel}`);
+				const middleBounds = await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, 9, 200);
+				if (movingEdge === 'left') {
+					const initialLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 0, 20, 200);
+					const middleLeftPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 9, 20, 200);
+					const middleRightPixel = await readGifFramePixel(ffmpegPath, rendered.beforeGifPath, 9, 470, 200);
+					assert.ok(isContent(initialLeftPixel), `${movingEdge} initial left pixel ${initialLeftPixel}`);
+					assert.ok(isBackground(middleLeftPixel), `${movingEdge} middle left pixel ${middleLeftPixel}`);
+					assert.ok(isContent(middleRightPixel), `${movingEdge} middle right pixel ${middleRightPixel}`);
+					assert.ok(middleBounds.max >= 480, `left motion moved the fixed right edge to ${middleBounds.max}`);
+					assert.ok(isBackground(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
+					assert.ok(isContent(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
+				} else if (movingEdge === 'right') {
+					assert.ok(middleBounds.min <= 5, `right motion moved the fixed left edge to ${middleBounds.min}`);
+					assert.ok(isContent(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
+					assert.ok(isBackground(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
 				} else {
-					assert.ok(isBackground(leftPixel), `${anchor} left pixel ${leftPixel}`);
-					assert.ok(isContent(centerPixel), `${anchor} center pixel ${centerPixel}`);
-					assert.ok(isBackground(rightPixel), `${anchor} right pixel ${rightPixel}`);
+					const leftSpace = middleBounds.min - 3;
+					const rightSpace = 482 - middleBounds.max;
+					assert.ok(Math.abs(leftSpace - rightSpace) <= 3, `centered motion spaces differ: ${leftSpace} and ${rightSpace}`);
+					assert.ok(isBackground(leftPixel), `${movingEdge} left pixel ${leftPixel}`);
+					assert.ok(isContent(centerPixel), `${movingEdge} center pixel ${centerPixel}`);
+					assert.ok(isBackground(rightPixel), `${movingEdge} right pixel ${rightPixel}`);
 				}
 			}
 		} finally {
@@ -214,6 +226,75 @@ async function readGifPixel(
 			code === 0 && pixel.length >= 3
 				? resolve([pixel[0], pixel[1], pixel[2]])
 				: reject(new Error(`Pixel sampling FFmpeg exited with ${code}.`));
+		});
+	});
+}
+
+async function readGifFramePixel(
+	executablePath: string,
+	gifPath: string,
+	frame: number,
+	x: number,
+	y: number,
+): Promise<[number, number, number]> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		const child = spawn(executablePath, [
+			'-v', 'error',
+			'-ignore_loop', '1',
+			'-i', gifPath,
+			'-vf', `select=eq(n\\,${frame}),crop=1:1:${x}:${y},format=rgb24`,
+			'-frames:v', '1',
+			'-f', 'rawvideo',
+			'pipe:1',
+		], { windowsHide: true });
+		child.stdout.on('data', data => chunks.push(Buffer.from(data)));
+		child.once('error', reject);
+		child.once('exit', code => {
+			const pixel = Buffer.concat(chunks);
+			code === 0 && pixel.length >= 3
+				? resolve([pixel[0], pixel[1], pixel[2]])
+				: reject(new Error(`GIF frame sampling exited with ${code}.`));
+		});
+	});
+}
+
+async function readGifFrameContentBounds(
+	executablePath: string,
+	gifPath: string,
+	frame: number,
+	y: number,
+): Promise<{ min: number; max: number }> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		const child = spawn(executablePath, [
+			'-v', 'error',
+			'-ignore_loop', '1',
+			'-i', gifPath,
+			'-vf', `select=eq(n\\,${frame}),format=rgb24,crop=iw:1:0:${y}`,
+			'-frames:v', '1',
+			'-f', 'rawvideo',
+			'pipe:1',
+		], { windowsHide: true });
+		child.stdout.on('data', data => chunks.push(Buffer.from(data)));
+		child.once('error', reject);
+		child.once('exit', code => {
+			const row = Buffer.concat(chunks);
+			if (code !== 0 || row.length < 3) {
+				reject(new Error(`GIF row sampling exited with ${code}.`));
+				return;
+			}
+			const contentPixels: number[] = [];
+			for (let offset = 0; offset < row.length; offset += 3) {
+				if (isContent([row[offset], row[offset + 1], row[offset + 2]])) {
+					contentPixels.push(offset / 3);
+				}
+			}
+			if (contentPixels.length === 0) {
+				reject(new Error(`GIF frame ${frame} did not contain the page color.`));
+				return;
+			}
+			resolve({ min: contentPixels[0], max: contentPixels.at(-1)! });
 		});
 	});
 }

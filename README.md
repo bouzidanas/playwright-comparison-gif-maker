@@ -83,7 +83,7 @@ Zoom is a recording-camera effect and does not change page layout, browser zoom,
 
 Camera movement uses cosine easing for a smooth arrival and departure. Moderate scales and short holds help viewers orient without making the comparison feel busy.
 
-`borderColor` accepts a six-digit hex color and defaults to GitHub dark border `#30363d`. It colors each pane frame, the divider, and unused canvas exposed by anchored resizing. `beforeLabelAlignment` and `afterLabelAlignment` accept `top-left`, `top-right`, `bottom-left`, or `bottom-right`. Their defaults are `top-left` for Before and `top-right` for After.
+`borderColor` accepts a six-digit hex color and defaults to GitHub dark border `#30363d`. It colors each pane frame, the divider, and unused canvas exposed by resize movement. `beforeLabelAlignment` and `afterLabelAlignment` accept `top-left`, `top-right`, `bottom-left`, or `bottom-right`. Their defaults are `top-left` for Before and `top-right` for After.
 
 Use resize actions whenever viewport dimensions are part of the behavior being demonstrated. This includes breakpoint changes, fluid reflow, text wrapping, overflow, sticky or fixed positioning, viewport units, resize observers, canvas sizing, sidebars, and layout stability. Resize is optional and should not be added to unrelated comparisons.
 
@@ -92,16 +92,18 @@ A resize action animates the page viewport while the recording canvas remains fi
 ```json
 [
 	{ "type": "hold", "durationMs": 500 },
-	{ "type": "resize", "width": 390, "height": 844, "durationMs": 800, "holdAfterMs": 1200 },
-	{ "type": "resize", "width": 1280, "height": 720, "durationMs": 800, "holdAfterMs": 800 }
+	{ "type": "resize", "width": 390, "height": 844, "movingEdge": "left", "durationMs": 800, "holdAfterMs": 1200 },
+	{ "type": "resize", "width": 1280, "height": 720, "movingEdge": "left", "durationMs": 800, "holdAfterMs": 800 }
 ]
 ```
 
-Set `anchor` on a resize action to control where the page sits in that fixed canvas:
+Set `movingEdge` on every resize action. It names the edge that visibly moves, not the edge that stays fixed:
 
-- `right` keeps the left edge fixed while the right edge moves. This is the default.
-- `left` keeps the right edge fixed while the left edge moves.
-- `both` moves both edges equally so the page remains centered.
+- `movingEdge: "right"` keeps the left edge fixed while the right edge moves.
+- `movingEdge: "left"` keeps the right edge fixed while the left edge moves.
+- `movingEdge: "both"` moves both edges equally so the page remains centered.
+
+Older `anchor` payloads remain accepted for compatibility but are no longer exposed to agents.
 
 For breakpoint fixes, start on one side of the breakpoint and cross it during the recording rather than showing only a fixed mobile or desktop state.
 

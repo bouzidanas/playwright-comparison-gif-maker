@@ -14,8 +14,19 @@ export type ComparisonLayout = 'auto' | 'horizontal' | 'vertical';
 export type ResolvedComparisonLayout = Exclude<ComparisonLayout, 'auto'>;
 export type ComparisonOutputMode = 'animation' | 'image';
 export type BrowserColorScheme = 'light' | 'dark' | 'system';
-export type ResizeAnchor = 'left' | 'right' | 'both';
+export type ResizeMovingEdge = 'left' | 'right' | 'both';
 export type LabelAlignment = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+type ResizeAction = {
+	type: 'resize';
+	width: number;
+	height: number;
+	durationMs?: number;
+	holdAfterMs?: number;
+} & (
+	{ movingEdge: ResizeMovingEdge; anchor?: never }
+	| { movingEdge?: never; anchor: ResizeMovingEdge }
+);
 
 export type ScenarioAction =
 	| { type: 'goto'; path?: string; holdAfterMs?: number }
@@ -24,7 +35,7 @@ export type ScenarioAction =
 	| { type: 'fill'; locator: string; value: string; holdAfterMs?: number }
 	| { type: 'press'; locator: string; key: string; holdAfterMs?: number }
 	| { type: 'scroll'; locator?: string; deltaX?: number; deltaY: number; holdAfterMs?: number }
-	| { type: 'resize'; width: number; height: number; anchor?: ResizeAnchor; durationMs?: number; holdAfterMs?: number }
+	| ResizeAction
 	| { type: 'zoom'; locator?: string; scale?: number; durationMs?: number; holdAfterMs?: number }
 	| { type: 'waitFor'; locator: string; state?: 'attached' | 'detached' | 'visible' | 'hidden'; timeoutMs?: number; holdAfterMs?: number }
 	| { type: 'hold'; durationMs: number };
@@ -75,7 +86,7 @@ export interface ResizeCue {
 	actionIndex: number;
 	from: Viewport;
 	to: Viewport;
-	anchor: ResizeAnchor;
+	movingEdge: ResizeMovingEdge;
 	durationMs: number;
 }
 
@@ -232,8 +243,18 @@ function validateAction(action: ScenarioAction, index: number): void {
 			return;
 		case 'resize':
 			validateViewport(action, `Scenario action ${index + 1} resize`);
-			if (action.anchor && !['left', 'right', 'both'].includes(action.anchor)) {
-				invalid(`has unsupported anchor "${action.anchor}".`);
+			const resizeAction = action as { movingEdge?: ResizeMovingEdge; anchor?: ResizeMovingEdge };
+			if (!resizeAction.movingEdge && !resizeAction.anchor) {
+				invalid('requires movingEdge to be left, right, or both.');
+			}
+			if (resizeAction.movingEdge && !['left', 'right', 'both'].includes(resizeAction.movingEdge)) {
+				invalid(`has unsupported movingEdge "${resizeAction.movingEdge}".`);
+			}
+			if (resizeAction.anchor && !['left', 'right', 'both'].includes(resizeAction.anchor)) {
+				invalid(`has unsupported legacy anchor "${resizeAction.anchor}".`);
+			}
+			if (resizeAction.movingEdge && resizeAction.anchor && resizeAction.movingEdge !== resizeAction.anchor) {
+				invalid('has conflicting movingEdge and legacy anchor values.');
 			}
 			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
 				invalid('requires durationMs between 0 and 10000.');

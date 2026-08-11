@@ -85,9 +85,22 @@ suite('Comparison model', () => {
 		assert.throws(
 			() => validateComparisonRequest({
 				...validRequest,
-				scenario: { name: 'Invalid resize', actions: [{ type: 'resize', width: 200, height: 844 }] },
+				scenario: { name: 'Invalid resize', actions: [{ type: 'resize', width: 200, height: 844, movingEdge: 'left' }] },
 			}),
 			/at least 320 by 240/,
+		);
+	});
+
+	test('requires an explicit moving edge for every resize', () => {
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Ambiguous resize',
+					actions: [{ type: 'resize', width: 640, height: 480 } as never],
+				},
+			}),
+			/requires movingEdge/,
 		);
 	});
 
@@ -112,7 +125,7 @@ suite('Comparison model', () => {
 					actions: [{ type: 'resize', width: 640, height: 480, anchor: 'middle' as never }],
 				},
 			}),
-			/unsupported anchor/,
+			/unsupported legacy anchor/,
 		);
 	});
 
@@ -132,8 +145,8 @@ suite('Comparison model', () => {
 			{
 				name: 'Responsive transition',
 				actions: [
-					{ type: 'resize', width: 390, height: 844 },
-					{ type: 'resize', width: 1440, height: 640 },
+					{ type: 'resize', width: 390, height: 844, movingEdge: 'left' },
+					{ type: 'resize', width: 1440, height: 640, movingEdge: 'left' },
 				],
 			},
 		), { width: 1440, height: 844 });

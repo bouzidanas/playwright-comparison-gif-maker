@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.14] - 2026-08-11
+
+- Replaced the ambiguous agent-facing resize anchor with a required `movingEdge` value for left, right, or simultaneous movement.
+- Synchronized viewport masking and placement by timestamp so the fixed edge cannot drift during a resize.
+- Added motion-level pixel checks for fixed-left, fixed-right, and horizontally centered resize behavior.
+
 ## [0.0.13] - 2026-08-11
 
 - Corrected left, right, and centered resize placement by isolating the live viewport from Playwright's blank recording area.

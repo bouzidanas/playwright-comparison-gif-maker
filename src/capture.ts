@@ -172,7 +172,7 @@ async function replayScenario(
 				actionIndex: index,
 				from,
 				to: { width: action.width, height: action.height },
-				anchor: action.anchor ?? 'right',
+				movingEdge: action.movingEdge ?? action.anchor ?? 'right',
 				durationMs: action.durationMs ?? 800,
 			});
 		}
