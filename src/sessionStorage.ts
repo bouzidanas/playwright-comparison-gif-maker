@@ -1,0 +1,30 @@
+import { readdir, rm, stat } from 'node:fs/promises';
+import * as path from 'node:path';
+
+export async function cleanupExpiredSessions(storageRoot: string, retentionDays: number): Promise<number> {
+	const sessionsPath = path.join(storageRoot, 'sessions');
+	let entries;
+	try {
+		entries = await readdir(sessionsPath, { withFileTypes: true });
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			return 0;
+		}
+		throw error;
+	}
+
+	const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+	let removed = 0;
+	for (const entry of entries) {
+		if (!entry.isDirectory()) {
+			continue;
+		}
+		const sessionPath = path.join(sessionsPath, entry.name);
+		const sessionStat = await stat(sessionPath);
+		if (sessionStat.mtimeMs < cutoff) {
+			await rm(sessionPath, { recursive: true, force: true });
+			removed += 1;
+		}
+	}
+	return removed;
+}
