@@ -1,12 +1,20 @@
 ---
 name: create-pr-ui-comparison
-description: "Create a synchronized Before and After GIF for a UI fix without modifying repository files. Use when: the user asks for a PR UI comparison, visual comparison against main or another Git ref, Before and After GIF, or recorded UI fix demonstration."
+description: "Create static PNG or synchronized GIF Before and After UI comparisons without modifying repository files. Use when: the user asks for a PR visual comparison, image or screenshot comparison, theme comparison, comparison against a Git ref, or recorded UI fix demonstration."
 argument-hint: Describe the UI behavior to demonstrate
 ---
 
 # Create a PR UI comparison
 
 Use the `pr-ui-compare_createComparison` tool to produce a reviewable artifact outside the repository.
+
+Animation is the default. Use `outputMode: image` only when the user explicitly asks for static images or the comparison is truly motionless. Truly static means nothing happens during the demonstration: no events, clicks, hovers, key presses, transitions, loading sequence, resizing, zooming, scrolling, opening, closing, or state changes. Image mode requires an empty action list and captures only the settled initial route. When there is any doubt, use `animation`.
+
+Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or initial layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files and is required for every scenario action.
+
+Set `colorScheme` to `light`, `dark`, or `system` when the comparison should render both versions in one browser appearance. This controls the `prefers-color-scheme` media feature before the page loads, so responsive themes initialize correctly. `system` disables explicit emulation and is the default.
+
+For a direct light-versus-dark comparison, set `beforeColorScheme` and `afterColorScheme` independently, for example Before `light` and After `dark`. Per-side values override the common `colorScheme`. Use independent schemes only when the requested comparison is specifically about appearance modes; normal code-change comparisons should use the same scheme on both sides.
 
 This is a read-only workspace workflow. Do not create, edit, or delete workspace files. Do not write a JavaScript, TypeScript, Playwright, or shell helper script. Do not add dependencies, tests, configuration, or generated media to the repository. Express the recording through the tool's declarative scenario actions.
 

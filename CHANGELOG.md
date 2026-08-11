@@ -6,6 +6,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-08-11
+
+- Made animation the conservative default and restricted image mode to action-free, truly static comparisons.
+- Improved zoom sharpness by applying camera crops before final scaling and using full GIF palettes.
+## [0.0.10] - 2026-08-11
+
+- Added common and per-side Light, Dark, and System browser color-scheme emulation.
+## [0.0.9] - 2026-08-11
+
+- Added final-state static PNG comparisons with combined, Before, and After image outputs.
 ## [0.0.8] - 2026-08-10
 
 - Kept the synthetic pointer hidden until the first pointer interaction.

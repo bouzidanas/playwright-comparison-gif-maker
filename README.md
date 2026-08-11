@@ -1,6 +1,6 @@
 # PR UI Compare
 
-PR UI Compare creates a labeled Before and After GIF for a pull request by replaying the same Playwright scenario against a baseline Git revision and the current working tree.
+PR UI Compare creates labeled static PNG or animated GIF comparisons for a pull request by evaluating the same Playwright scenario against a baseline Git revision and the current working tree.
 
 The intended workflow is straightforward. Implement and test a visible UI change, commit and push when the final artifact is needed, generate the comparison, review it in VS Code, then drag the exported GIF into the GitHub PR description. An open pull request is not required.
 
@@ -10,6 +10,7 @@ The intended workflow is straightforward. Implement and test a visible UI change
 - Creates a detached temporary Git worktree without changing the current workspace.
 - Starts Before and After applications sequentially on separate dynamic ports.
 - Replays one declarative Playwright scenario against both applications.
+- Captures final-state `comparison.png`, `before.png`, and `after.png` files for static visual changes.
 - Keeps the synthetic pointer out of view unless a click or hover action uses it.
 - Tracks an optional focused element throughout the scenario and crops to its padded bounds.
 - Keeps normal comparisons side by side.
@@ -39,6 +40,26 @@ Ask Copilot something similar to:
 ```text
 Create a PR UI comparison that demonstrates the mobile menu fix against upstream/main.
 ```
+
+For a static comparison, ask:
+
+```text
+Create a static PR UI image comparison showing the card styling change against main.
+```
+
+The agent sets `outputMode` to `image` only for an explicit or truly motionless comparison. Image mode requires an empty action list and captures the settled initial route as-is. If anything happens or changes, including an event, interaction, transition, loading sequence, resize, zoom, scroll, opening, or closing, use animation. When the request is ambiguous, animation is always the default.
+
+Use `colorScheme` to load both browser contexts in `light`, `dark`, or `system` mode. It emulates `prefers-color-scheme` before navigation so pages initialize in the requested appearance. For a direct light-versus-dark image, set `beforeColorScheme` and `afterColorScheme` independently:
+
+```json
+{
+	"outputMode": "image",
+	"beforeColorScheme": "light",
+	"afterColorScheme": "dark"
+}
+```
+
+Per-side values override `colorScheme`. The default is `system`, which disables explicit color-scheme emulation.
 
 The contributed skill tells the agent to inspect project scripts and lockfiles, choose stable Playwright locators, keep the scenario short, and request confirmation before project commands run.
 
@@ -84,7 +105,7 @@ For breakpoint fixes, start on one side of the breakpoint and cross it during th
 
 ## Manual usage
 
-Run **PR UI Compare: Create PR UI Comparison** from the Command Palette. The wizard asks for the baseline ref, start command, readiness URL, optional baseline install command, route, optional focus locator, and scenario actions as JSON.
+Run **PR UI Compare: Create PR UI Comparison** from the Command Palette. The wizard first asks for animated versus static output and System, Light, or Dark browser appearance, then asks for the baseline ref, start command, readiness URL, optional baseline install command, route, optional focus locator, and scenario actions as JSON.
 
 Use `{port}` in commands and URLs:
 
@@ -97,7 +118,7 @@ The manual wizard defaults to a two-second static recording. Agent usage is pref
 
 ## Storage
 
-Raw videos, timing metadata, and rendered GIFs are written under VS Code workspace storage. They do not appear in Source Control. The preview provides **Save GIFs As...** and **Reveal Session** controls.
+Raw captures, timing metadata, and rendered GIF or PNG files are written under VS Code workspace storage. They do not appear in Source Control. The preview exports the combined, Before, and After artifacts together.
 
 `prUiCompare.retentionDays` keeps temporary sessions for 1 to 90 days. The default is 7 days.
 

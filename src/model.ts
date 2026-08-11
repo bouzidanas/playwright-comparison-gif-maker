@@ -12,6 +12,8 @@ export interface CaptureRegion {
 
 export type ComparisonLayout = 'auto' | 'horizontal' | 'vertical';
 export type ResolvedComparisonLayout = Exclude<ComparisonLayout, 'auto'>;
+export type ComparisonOutputMode = 'animation' | 'image';
+export type BrowserColorScheme = 'light' | 'dark' | 'system';
 export type ResizeAnchor = 'left' | 'right' | 'both';
 export type LabelAlignment = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -33,6 +35,10 @@ export interface ComparisonScenario {
 }
 
 export interface ComparisonRequest {
+	outputMode?: ComparisonOutputMode;
+	colorScheme?: BrowserColorScheme;
+	beforeColorScheme?: BrowserColorScheme;
+	afterColorScheme?: BrowserColorScheme;
 	baseRef: string;
 	startCommand: string;
 	readyUrl: string;
@@ -74,6 +80,7 @@ export interface ResizeCue {
 
 export interface CaptureResult {
 	videoPath: string;
+	observedColorScheme: Exclude<BrowserColorScheme, 'system'>;
 	timings: ActionTiming[];
 	replayOffsetMs: number;
 	recordingSize: Viewport;
@@ -82,21 +89,50 @@ export interface CaptureResult {
 	region?: CaptureRegion;
 }
 
-export interface ComparisonResult {
+export interface StaticCaptureResult {
+	imagePath: string;
+	observedColorScheme: Exclude<BrowserColorScheme, 'system'>;
+	recordingSize: Viewport;
+	resizeCues: ResizeCue[];
+	zoomCues: ZoomCue[];
+	region?: CaptureRegion;
+}
+
+interface ComparisonResultBase {
 	sessionId: string;
 	sessionDirectory: string;
-	gifPath: string;
-	beforeGifPath: string;
-	afterGifPath: string;
-	beforeVideoPath: string;
-	afterVideoPath: string;
+	comparisonPath: string;
+	beforePath: string;
+	afterPath: string;
 	baseSha: string;
 	candidateSha?: string;
 	candidateDirty: boolean;
 	beforeLabel: string;
 	afterLabel: string;
+	beforeColorScheme: BrowserColorScheme;
+	afterColorScheme: BrowserColorScheme;
+	beforeObservedColorScheme: Exclude<BrowserColorScheme, 'system'>;
+	afterObservedColorScheme: Exclude<BrowserColorScheme, 'system'>;
 	layout: ResolvedComparisonLayout;
 }
+
+export interface AnimationComparisonResult extends ComparisonResultBase {
+	outputMode: 'animation';
+	gifPath: string;
+	beforeGifPath: string;
+	afterGifPath: string;
+	beforeVideoPath: string;
+	afterVideoPath: string;
+}
+
+export interface ImageComparisonResult extends ComparisonResultBase {
+	outputMode: 'image';
+	imagePath: string;
+	beforeImagePath: string;
+	afterImagePath: string;
+}
+
+export type ComparisonResult = AnimationComparisonResult | ImageComparisonResult;
 
 export function validateComparisonRequest(request: ComparisonRequest): void {
 	if (!request.baseRef.trim()) {
@@ -111,8 +147,11 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	if (!request.scenario.name.trim()) {
 		throw new Error('The scenario must have a name.');
 	}
-	if (request.scenario.actions.length === 0) {
+	if ((request.outputMode ?? 'animation') === 'animation' && request.scenario.actions.length === 0) {
 		throw new Error('The scenario must contain at least one action.');
+	}
+	if (request.outputMode === 'image' && request.scenario.actions.length > 0) {
+		throw new Error('Static image comparisons cannot contain actions. Use animation mode whenever anything happens or changes.');
 	}
 	request.scenario.actions.forEach((action, index) => validateAction(action, index));
 	if (request.focusPadding !== undefined && (!Number.isFinite(request.focusPadding) || request.focusPadding < 0 || request.focusPadding > 256)) {
@@ -131,6 +170,15 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	}
 	if (request.borderColor && !/^#[0-9a-f]{6}$/i.test(request.borderColor)) {
 		throw new Error('Border color must be a six-digit hex color such as #30363d.');
+	}
+	for (const [name, colorScheme] of [
+		['Color scheme', request.colorScheme],
+		['Before color scheme', request.beforeColorScheme],
+		['After color scheme', request.afterColorScheme],
+	] as const) {
+		if (colorScheme && !['light', 'dark', 'system'].includes(colorScheme)) {
+			throw new Error(`${name} "${colorScheme}" is unsupported.`);
+		}
 	}
 
 	const viewport = request.viewport ?? { width: 1280, height: 720 };

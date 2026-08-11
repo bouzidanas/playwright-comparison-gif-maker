@@ -25,13 +25,18 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 	): Promise<vscode.LanguageModelToolResult> {
 		const result = await this.execute(options.input, token);
 		const summary = {
-			gifPath: result.gifPath,
-			beforeGifPath: result.beforeGifPath,
-			afterGifPath: result.afterGifPath,
+			outputMode: result.outputMode,
+			comparisonPath: result.comparisonPath,
+			beforePath: result.beforePath,
+			afterPath: result.afterPath,
 			sessionDirectory: result.sessionDirectory,
 			baseSha: result.baseSha,
 			candidateSha: result.candidateSha,
 			candidateDirty: result.candidateDirty,
+			beforeColorScheme: result.beforeColorScheme,
+			afterColorScheme: result.afterColorScheme,
+			beforeObservedColorScheme: result.beforeObservedColorScheme,
+			afterObservedColorScheme: result.afterObservedColorScheme,
 			beforeLabel: result.beforeLabel,
 			afterLabel: result.afterLabel,
 			layout: result.layout,

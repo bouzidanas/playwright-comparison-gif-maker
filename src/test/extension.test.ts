@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { getRecordingSize, INITIAL_POINTER_STYLE } from '../capture';
+import { getRecordingSize, INITIAL_POINTER_STYLE, resolvePlaywrightColorScheme } from '../capture';
 import { expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
 
@@ -18,6 +18,12 @@ suite('Comparison model', () => {
 		assert.doesNotThrow(() => validateComparisonRequest(validRequest));
 	});
 
+	test('maps browser color scheme modes to Playwright emulation', () => {
+		assert.strictEqual(resolvePlaywrightColorScheme('light'), 'light');
+		assert.strictEqual(resolvePlaywrightColorScheme('dark'), 'dark');
+		assert.strictEqual(resolvePlaywrightColorScheme('system'), null);
+	});
+
 	test('starts the synthetic pointer outside the visible page', () => {
 		assert.deepStrictEqual(INITIAL_POINTER_STYLE, {
 			left: '-32px',
@@ -30,6 +36,21 @@ suite('Comparison model', () => {
 		assert.throws(
 			() => validateComparisonRequest({ ...validRequest, scenario: { name: 'Empty', actions: [] } }),
 			/at least one action/,
+		);
+	});
+
+	test('accepts an empty scenario for a route-only image comparison', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({
+			...validRequest,
+			outputMode: 'image',
+			scenario: { name: 'Static route', actions: [] },
+		}));
+	});
+
+	test('rejects actions in static image mode', () => {
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, outputMode: 'image' }),
+			/cannot contain actions/,
 		);
 	});
 
@@ -61,6 +82,10 @@ suite('Comparison model', () => {
 		assert.throws(
 			() => validateComparisonRequest({ ...validRequest, beforeLabelAlignment: 'center' as never }),
 			/alignment .* unsupported/,
+		);
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, colorScheme: 'sepia' as never }),
+			/Color scheme .* unsupported/,
 		);
 		assert.throws(
 			() => validateComparisonRequest({

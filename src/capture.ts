@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import * as vscode from 'vscode';
-import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, Viewport, ZoomCue } from './model';
+import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
 
 export const INITIAL_POINTER_STYLE = {
 	left: '-32px',
@@ -14,6 +14,7 @@ export async function captureScenario(
 	route: string | undefined,
 	scenario: ComparisonScenario,
 	viewport: Viewport,
+	colorScheme: BrowserColorScheme,
 	focusLocator: string | undefined,
 	focusPadding: number,
 	outputDirectory: string,
@@ -24,6 +25,7 @@ export async function captureScenario(
 		const recordingSize = getRecordingSize(viewport, scenario);
 		const context = await browser.newContext({
 			viewport,
+			colorScheme: resolvePlaywrightColorScheme(colorScheme),
 			recordVideo: { dir: outputDirectory, size: recordingSize },
 		});
 		const page = await context.newPage();
@@ -31,6 +33,7 @@ export async function captureScenario(
 		const video = page.video();
 		const initialUrl = new URL(route || '/', baseUrl).toString();
 		await page.goto(initialUrl, { waitUntil: 'networkidle' });
+		const observedColorScheme = await readObservedColorScheme(page);
 		await installCursorOverlay(page);
 		const regionSamples: CaptureRegion[] = [];
 		const resizeCues: ResizeCue[] = [];
@@ -51,6 +54,7 @@ export async function captureScenario(
 		}
 		return {
 			videoPath: await video.path(),
+			observedColorScheme,
 			timings,
 			replayOffsetMs,
 			recordingSize,
@@ -61,6 +65,56 @@ export async function captureScenario(
 	} finally {
 		await browser.close();
 	}
+}
+
+export async function captureStaticScenario(
+	baseUrl: string,
+	route: string | undefined,
+	scenario: ComparisonScenario,
+	viewport: Viewport,
+	colorScheme: BrowserColorScheme,
+	focusLocator: string | undefined,
+	focusPadding: number,
+	outputDirectory: string,
+	token: vscode.CancellationToken,
+): Promise<StaticCaptureResult> {
+	const browser = await launchBrowser();
+	try {
+		const recordingSize = getRecordingSize(viewport, scenario);
+		const context = await browser.newContext({
+			viewport,
+			colorScheme: resolvePlaywrightColorScheme(colorScheme),
+		});
+		const page = await context.newPage();
+		await page.goto(new URL(route || '/', baseUrl).toString(), { waitUntil: 'networkidle' });
+		const observedColorScheme = await readObservedColorScheme(page);
+		await installCursorOverlay(page);
+		const resizeCues: ResizeCue[] = [];
+		const zoomCues: ZoomCue[] = [];
+		await replayScenario(page, baseUrl, scenario, undefined, focusPadding, [], resizeCues, zoomCues, token);
+		let region: CaptureRegion | undefined;
+		if (focusLocator) {
+			await page.locator(focusLocator).waitFor({ state: 'visible' });
+			region = await measureFocusRegion(page, focusLocator, focusPadding);
+			if (!region) {
+				throw new Error(`Focus locator "${focusLocator}" did not have visible bounds in the final state.`);
+			}
+		}
+		const imagePath = path.join(outputDirectory, 'screenshot.png');
+		await page.screenshot({ path: imagePath });
+		await context.close();
+		return { imagePath, observedColorScheme, recordingSize, resizeCues, zoomCues, region };
+	} finally {
+		await browser.close();
+	}
+}
+
+export function resolvePlaywrightColorScheme(colorScheme: BrowserColorScheme): 'light' | 'dark' | null {
+	return colorScheme === 'system' ? null : colorScheme;
+}
+
+async function readObservedColorScheme(page: Page): Promise<'light' | 'dark'> {
+	return page.evaluate(() => matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 }
 
 async function launchBrowser(): Promise<Browser> {

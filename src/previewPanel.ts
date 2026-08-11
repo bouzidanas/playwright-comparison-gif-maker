@@ -14,22 +14,24 @@ export async function showComparisonResult(
 		vscode.ViewColumn.Active,
 		{ enableScripts: true, localResourceRoots: [vscode.Uri.file(result.sessionDirectory)] },
 	);
-	const gifUri = panel.webview.asWebviewUri(vscode.Uri.file(result.gifPath));
-	panel.webview.html = previewHtml(panel.webview, gifUri, result, request);
+	const comparisonUri = panel.webview.asWebviewUri(vscode.Uri.file(result.comparisonPath));
+	panel.webview.html = previewHtml(panel.webview, comparisonUri, result, request);
 	panel.webview.onDidReceiveMessage(async message => {
 		if (message?.type === 'save') {
-			await saveGifs(result, request.scenario.name);
+			await saveArtifacts(result, request.scenario.name);
 		} else if (message?.type === 'reveal') {
 			await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(result.sessionDirectory));
 		}
 	});
 }
 
-async function saveGifs(result: ComparisonResult, scenarioName: string): Promise<void> {
+async function saveArtifacts(result: ComparisonResult, scenarioName: string): Promise<void> {
+	const isImage = result.outputMode === 'image';
+	const extensionName = isImage ? 'png' : 'gif';
 	const destination = await vscode.window.showSaveDialog({
-		filters: { GIF: ['gif'] },
-		saveLabel: 'Export comparison GIFs',
-		defaultUri: vscode.Uri.file(path.join(os.homedir(), `${fileName(scenarioName)}.gif`)),
+		filters: isImage ? { PNG: ['png'] } : { GIF: ['gif'] },
+		saveLabel: `Export comparison ${isImage ? 'images' : 'GIFs'}`,
+		defaultUri: vscode.Uri.file(path.join(os.homedir(), `${fileName(scenarioName)}.${extensionName}`)),
 	});
 	if (!destination) {
 		return;
@@ -39,17 +41,17 @@ async function saveGifs(result: ComparisonResult, scenarioName: string): Promise
 	const beforeDestination = path.join(parsed.dir, `${parsed.name}-before${extension}`);
 	const afterDestination = path.join(parsed.dir, `${parsed.name}-after${extension}`);
 	await Promise.all([
-		copyFile(result.gifPath, destination.fsPath),
-		copyFile(result.beforeGifPath, beforeDestination),
-		copyFile(result.afterGifPath, afterDestination),
+		copyFile(result.comparisonPath, destination.fsPath),
+		copyFile(result.beforePath, beforeDestination),
+		copyFile(result.afterPath, afterDestination),
 	]);
-	await vscode.window.showInformationMessage(`Saved ${parsed.name}, ${parsed.name}-before, and ${parsed.name}-after GIFs.`, 'Reveal')
+	await vscode.window.showInformationMessage(`Saved ${parsed.name}, ${parsed.name}-before, and ${parsed.name}-after ${isImage ? 'images' : 'GIFs'}.`, 'Reveal')
 		.then(action => action === 'Reveal' && vscode.commands.executeCommand('revealFileInOS', destination));
 }
 
 function previewHtml(
 	webview: vscode.Webview,
-	gifUri: vscode.Uri,
+	comparisonUri: vscode.Uri,
 	result: ComparisonResult,
 	request: ComparisonRequest,
 ): string {
@@ -80,10 +82,10 @@ function previewHtml(
 	<main>
 		<h1>${escapeHtml(request.scenario.name)}</h1>
 		<p class="meta"><code>${escapeHtml(shortSha(result.baseSha))}</code> compared with <code>${escapeHtml(shortSha(result.candidateSha || 'working-tree'))}</code></p>
-		<img class="preview" src="${gifUri}" alt="Before and After UI comparison">
+		<img class="preview" src="${comparisonUri}" alt="Before and After UI comparison">
 		${result.candidateDirty ? '<p class="warning">The After capture includes uncommitted changes. Regenerate after committing and pushing before publishing the PR.</p>' : ''}
 		<div class="actions">
-			<button id="save" type="button">Save GIFs As...</button>
+			<button id="save" type="button">Save ${result.outputMode === 'image' ? 'Images' : 'GIFs'} As...</button>
 			<button id="reveal" class="secondary" type="button">Reveal Session</button>
 		</div>
 	</main>

@@ -91,8 +91,31 @@ async function runWithProgress(
 
 async function collectRequest(workspacePath: string): Promise<ComparisonRequest | undefined> {
 	const repository = await GitRepository.open(workspacePath);
+	const output = await vscode.window.showQuickPick([
+		{ label: 'Animated GIF', description: 'Record synchronized motion and interactions', value: 'animation' as const },
+		{ label: 'Static PNG', description: 'Capture the final visual state', value: 'image' as const },
+	], {
+		title: 'PR UI Compare (1/8)',
+		placeHolder: 'Choose the comparison output type',
+		ignoreFocusOut: true,
+	});
+	if (!output) {
+		return undefined;
+	}
+	const colorScheme = await vscode.window.showQuickPick([
+		{ label: 'System', description: 'Use host browser preference', value: 'system' as const },
+		{ label: 'Light', description: 'Emulate prefers-color-scheme: light', value: 'light' as const },
+		{ label: 'Dark', description: 'Emulate prefers-color-scheme: dark', value: 'dark' as const },
+	], {
+		title: 'PR UI Compare (2/9)',
+		placeHolder: 'Choose the browser color scheme',
+		ignoreFocusOut: true,
+	});
+	if (!colorScheme) {
+		return undefined;
+	}
 	const baseRef = await vscode.window.showInputBox({
-		title: 'PR UI Compare (1/7)',
+		title: 'PR UI Compare (3/9)',
 		prompt: 'Git ref for the original repository behavior',
 		value: await repository.suggestBaseRef(),
 		ignoreFocusOut: true,
@@ -102,7 +125,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 	}
 	const defaults = await detectProjectDefaults(workspacePath);
 	const startCommand = await vscode.window.showInputBox({
-		title: 'PR UI Compare (2/7)',
+		title: 'PR UI Compare (4/9)',
 		prompt: 'Command that starts the application. Use {port} where the port belongs.',
 		value: defaults.startCommand,
 		ignoreFocusOut: true,
@@ -111,7 +134,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		return undefined;
 	}
 	const readyUrl = await vscode.window.showInputBox({
-		title: 'PR UI Compare (3/7)',
+		title: 'PR UI Compare (5/9)',
 		prompt: 'URL that indicates the application is ready',
 		value: 'http://127.0.0.1:{port}',
 		ignoreFocusOut: true,
@@ -120,7 +143,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		return undefined;
 	}
 	const installCommand = await vscode.window.showInputBox({
-		title: 'PR UI Compare (4/7)',
+		title: 'PR UI Compare (6/9)',
 		prompt: 'Command to install dependencies in the temporary Before worktree. Leave blank to skip.',
 		value: defaults.installCommand,
 		ignoreFocusOut: true,
@@ -129,7 +152,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		return undefined;
 	}
 	const route = await vscode.window.showInputBox({
-		title: 'PR UI Compare (5/7)',
+		title: 'PR UI Compare (7/9)',
 		prompt: 'Application route to record',
 		value: '/',
 		ignoreFocusOut: true,
@@ -138,7 +161,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		return undefined;
 	}
 	const focusLocator = await vscode.window.showInputBox({
-		title: 'PR UI Compare (6/7)',
+		title: 'PR UI Compare (8/9)',
 		prompt: 'Optional Playwright locator for the UI region to crop around. Leave blank for the full viewport.',
 		value: '',
 		ignoreFocusOut: true,
@@ -147,9 +170,9 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		return undefined;
 	}
 	const actionsJson = await vscode.window.showInputBox({
-		title: 'PR UI Compare (7/7)',
+		title: 'PR UI Compare (9/9)',
 		prompt: 'Scenario actions as a JSON array. Agents can create richer scenarios through the PR UI Compare tool.',
-		value: '[{"type":"hold","durationMs":2000}]',
+		value: output.value === 'image' ? '[]' : '[{"type":"hold","durationMs":2000}]',
 		ignoreFocusOut: true,
 	});
 	if (!actionsJson) {
@@ -165,6 +188,8 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 		throw new Error('Scenario actions must be a valid JSON array.');
 	}
 	return {
+		outputMode: output.value,
+		colorScheme: colorScheme.value,
 		baseRef,
 		startCommand,
 		readyUrl,

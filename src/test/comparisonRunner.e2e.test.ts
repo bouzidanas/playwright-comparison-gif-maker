@@ -54,6 +54,9 @@ suite('Comparison runner end to end', function () {
 			);
 
 			assert.strictEqual(result.candidateDirty, true);
+			if (result.outputMode !== 'animation') {
+				assert.fail('Expected an animation comparison result.');
+			}
 			assert.strictEqual(result.layout, 'horizontal');
 			assert.match(result.beforeLabel, /^Before \([0-9a-f]{8}\)$/);
 			assert.match(result.afterLabel, /^After \([0-9a-f]{8}\)$/);
@@ -65,6 +68,65 @@ suite('Comparison runner end to end', function () {
 			};
 			assert.strictEqual(session.timings.before.length, 6);
 			assert.strictEqual(session.timings.after.length, 6);
+			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
+		} finally {
+			output.dispose();
+			await rm(repositoryPath, { recursive: true, force: true });
+			await rm(storagePath, { recursive: true, force: true });
+		}
+	});
+
+	test('captures and composes final-state PNG images', async function () {
+		if (process.env.PR_UI_COMPARE_E2E !== '1') {
+			this.skip();
+		}
+
+		const repositoryPath = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-image-repo-'));
+		const storagePath = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-image-storage-'));
+		const output = vscode.window.createOutputChannel('PR UI Compare Image E2E');
+		try {
+			await createFixtureRepository(repositoryPath);
+			const request: ComparisonRequest = {
+				outputMode: 'image',
+				baseRef: 'HEAD',
+				startCommand: 'node server.js {port}',
+				readyUrl: 'http://127.0.0.1:{port}',
+				beforeLabel: 'Before',
+				afterLabel: 'After',
+				beforeColorScheme: 'light',
+				afterColorScheme: 'dark',
+				borderColor: '#30363d',
+				viewport: { width: 640, height: 480 },
+				scenario: {
+					name: 'Static panel comparison',
+					actions: [],
+				},
+			};
+			const result = await new ComparisonRunner(storagePath, output).run(
+				repositoryPath,
+				request,
+				new vscode.CancellationTokenSource().token,
+				() => undefined,
+			);
+			if (result.outputMode !== 'image') {
+				assert.fail('Expected an image comparison result.');
+			}
+			assert.strictEqual(result.comparisonPath, result.imagePath);
+			assert.strictEqual(result.beforeColorScheme, 'light');
+			assert.strictEqual(result.afterColorScheme, 'dark');
+			assert.strictEqual(result.beforeObservedColorScheme, 'light');
+			assert.strictEqual(result.afterObservedColorScheme, 'dark');
+			for (const imagePath of [result.imagePath, result.beforeImagePath, result.afterImagePath]) {
+				const image = await readFile(imagePath);
+				assert.deepStrictEqual([...image.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+				assert.ok(image.length > 1_000);
+			}
+			const combined = await readFile(result.imagePath);
+			assert.strictEqual(combined.readUInt32BE(16), 972);
+			assert.strictEqual(combined.readUInt32BE(20), 366);
+			const before = await readFile(result.beforeImagePath);
+			assert.strictEqual(before.readUInt32BE(16), 486);
+			assert.strictEqual(before.readUInt32BE(20), 366);
 			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
 		} finally {
 			output.dispose();
@@ -105,6 +167,9 @@ button { font: inherit; padding: 10px 16px; }
 @media (max-width: 480px) {
 	#toolbar { width: calc(100vw - 104px); }
 	#panel.open { width: calc(100vw - 120px); }
+}
+@media (prefers-color-scheme: dark) {
+	body { background: #101418; color: #f0f3f6; }
 }
 </style></head>
 <body>

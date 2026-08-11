@@ -18,8 +18,8 @@ suite('Comparison renderer', function () {
 		try {
 			const before = path.join(directory, 'before.mp4');
 			const after = path.join(directory, 'after.mp4');
-			await createVideo(ffmpegPath, before, '0xc84b31');
-			await createVideo(ffmpegPath, after, '0x2e7d5b');
+			await createPatternVideo(ffmpegPath, before, 'testsrc2');
+			await createPatternVideo(ffmpegPath, after, 'smptebars');
 			const menuBar = { x: 20, y: 20, width: 600, height: 80 };
 			const zoomTarget = { x: 220, y: 30, width: 120, height: 40 };
 			const beforeTimings = [
@@ -163,5 +163,19 @@ async function createVideo(executablePath: string, outputPath: string, color: st
 		], { windowsHide: true });
 		child.once('error', reject);
 		child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Fixture FFmpeg exited with ${code}.`)));
+	});
+}
+
+async function createPatternVideo(executablePath: string, outputPath: string, source: 'testsrc2' | 'smptebars'): Promise<void> {
+	await new Promise<void>((resolve, reject) => {
+		const child = spawn(executablePath, [
+			'-y',
+			'-f', 'lavfi',
+			'-i', `${source}=size=640x480:rate=25:duration=1`,
+			'-pix_fmt', 'yuv420p',
+			outputPath,
+		], { windowsHide: true });
+		child.once('error', reject);
+		child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Pattern FFmpeg exited with ${code}.`)));
 	});
 }

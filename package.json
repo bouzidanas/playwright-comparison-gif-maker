@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.8",
+  "version": "0.0.11",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -61,8 +61,8 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Creates a labeled Before and After GIF without creating or modifying files in the user's repository. It resolves a baseline Git ref into a detached worktree, starts the baseline and current workspace applications sequentially, replays the exact same declarative Playwright actions against both, stores artifacts outside the repository, and opens a preview. Always use this tool directly for PR UI comparisons; never write a JavaScript, TypeScript, Playwright, or shell helper script. It supports smooth, persistent camera zoom toward a target element so viewers can orient before detailed interactions, followed by an eased return to the full frame. It can also animate viewport resizing from the left, right, or both edges for centered page placement. Border color and each pane's label corner are configurable. Zoom and resize are optional and should only be used when relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
-        "userDescription": "Record the same UI scenario before and after the current changes without modifying repository files.",
+        "modelDescription": "Creates a labeled Before and After comparison without creating or modifying files in the user's repository. Animation is the default and must be used whenever anything happens or changes, including any event, interaction, hover, transition, loading sequence, resize, zoom, scroll, opening, closing, or state mutation. Set outputMode to image only when the user explicitly requests static images or the subject is truly motionless and requires no actions at all. Image mode accepts an empty action list only and captures the settled initial route as PNG files. When uncertain, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, stores artifacts outside the repository, and opens a preview. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable. The start and optional install commands execute project code and require user confirmation.",
+        "userDescription": "Create static PNG or animated GIF UI comparisons without modifying repository files.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
         "icon": "$(record)",
@@ -75,6 +75,41 @@
         "inputSchema": {
           "type": "object",
           "properties": {
+            "outputMode": {
+              "type": "string",
+              "enum": [
+                "animation",
+                "image"
+              ],
+              "description": "Output type. animation is the default and is required whenever anything happens or changes. image is only for explicit or truly motionless, action-free initial-route PNG comparisons."
+            },
+            "colorScheme": {
+              "type": "string",
+              "enum": [
+                "light",
+                "dark",
+                "system"
+              ],
+              "description": "Preferred browser color scheme for both versions. system disables emulation and uses host browser behavior. Defaults to system."
+            },
+            "beforeColorScheme": {
+              "type": "string",
+              "enum": [
+                "light",
+                "dark",
+                "system"
+              ],
+              "description": "Optional color scheme override for the Before browser."
+            },
+            "afterColorScheme": {
+              "type": "string",
+              "enum": [
+                "light",
+                "dark",
+                "system"
+              ],
+              "description": "Optional color scheme override for the After browser."
+            },
             "baseRef": {
               "type": "string",
               "description": "Git branch, tag, or commit for the Before application, normally upstream/main or the PR target branch."
@@ -175,7 +210,6 @@
                 },
                 "actions": {
                   "type": "array",
-                  "minItems": 1,
                   "items": {
                     "type": "object",
                     "properties": {
@@ -323,7 +357,9 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test",
-    "test:e2e": "cross-env PR_UI_COMPARE_E2E=1 npm test",
+    "test:e2e": "npm run compile-tests && npm run compile && npm run lint && npm-run-all -s test:e2e:animation test:e2e:image",
+    "test:e2e:animation": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"records and renders a dirty working tree\" --timeout 180000",
+    "test:e2e:image": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"captures and composes final-state PNG images\" --timeout 180000",
     "check": "npm run compile && npm test",
     "package:vsix": "node scripts/package-vsix.js"
   },
