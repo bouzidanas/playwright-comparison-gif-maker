@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -61,8 +61,8 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Creates a labeled Before and After GIF by resolving a baseline Git ref into a detached worktree, starting the baseline and current workspace applications sequentially, replaying the exact same declarative Playwright actions against both, and opening a preview. It can animate viewport resizing for any dimension-dependent behavior, including fluid reflow, overflow, wrapping, resize observers, viewport units, layout stability, and responsive breakpoints. Resize is optional and should only be used when dimensions are relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
-        "userDescription": "Record the same UI scenario before and after the current changes.",
+        "modelDescription": "Creates a labeled Before and After GIF without creating or modifying files in the user's repository. It resolves a baseline Git ref into a detached worktree, starts the baseline and current workspace applications sequentially, replays the exact same declarative Playwright actions against both, stores artifacts outside the repository, and opens a preview. Always use this tool directly for PR UI comparisons; never write a JavaScript, TypeScript, Playwright, or shell helper script. It can animate viewport resizing for any dimension-dependent behavior, including fluid reflow, overflow, wrapping, resize observers, viewport units, layout stability, and responsive breakpoints. Resize is optional and should only be used when dimensions are relevant to the change. It normally uses side-by-side layout and automatically stacks extremely wide focused elements vertically. Use after a UI fix or feature is implemented and before creating or updating a pull request. The start and optional install commands execute project code and require user confirmation.",
+        "userDescription": "Record the same UI scenario before and after the current changes without modifying repository files.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
         "icon": "$(record)",
@@ -242,6 +242,11 @@
     "chatSkills": [
       {
         "path": "./skills/create-pr-ui-comparison/SKILL.md"
+      }
+    ],
+    "chatInstructions": [
+      {
+        "path": "./instructions/pr-ui-compare.instructions.md"
       }
     ],
     "configuration": {

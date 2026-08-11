@@ -1,12 +1,16 @@
 ---
 name: create-pr-ui-comparison
-description: Create a synchronized Before and After GIF that demonstrates a UI fix or feature for a pull request. Use after implementing a visible web application change and before opening or updating the PR.
+description: "Create a synchronized Before and After GIF for a UI fix without modifying repository files. Use when: the user asks for a PR UI comparison, visual comparison against main or another Git ref, Before and After GIF, or recorded UI fix demonstration."
 argument-hint: Describe the UI behavior to demonstrate
 ---
 
 # Create a PR UI comparison
 
 Use the `pr-ui-compare_createComparison` tool to produce a reviewable artifact outside the repository.
+
+This is a read-only workspace workflow. Do not create, edit, or delete workspace files. Do not write a JavaScript, TypeScript, Playwright, or shell helper script. Do not add dependencies, tests, configuration, or generated media to the repository. Express the recording through the tool's declarative scenario actions.
+
+If the tool is unavailable or disabled, stop and tell the user to enable **Create PR UI Comparison** in the Chat tool picker and reload VS Code. Do not recreate the comparison through terminal commands or temporary workspace files.
 
 Before invoking the tool:
 

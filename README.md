@@ -38,6 +38,8 @@ Create a PR UI comparison that demonstrates the mobile menu fix against upstream
 
 The contributed skill tells the agent to inspect project scripts and lockfiles, choose stable Playwright locators, keep the scenario short, and request confirmation before project commands run.
 
+The workflow does not create or modify files in the target repository. Agents should inspect the project read-only and pass a declarative scenario directly to the extension tool. If the tool is disabled or unavailable, the agent should stop and ask the user to enable it rather than generate a Playwright helper script.
+
 Set `focusLocator` for a stable region such as `role=navigation`, `data-testid=menu-bar`, or `#settings-panel`. Auto layout remains side by side for ordinary desktop and mobile captures. A region such as a full-width menu bar switches to top and bottom when its aspect ratio reaches 3:1.
 
 Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.

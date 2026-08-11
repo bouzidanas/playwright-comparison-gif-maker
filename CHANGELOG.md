@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-08-10
+
+- Prevented agents from falling back to generated Playwright scripts or repository edits when the comparison tool is unavailable.
+
 ## [0.0.2] - 2026-08-10
 
 - Added baseline Git ref versus current workspace comparisons.
