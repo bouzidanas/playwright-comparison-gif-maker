@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-08-10
+
+- Added smooth, persistent camera zoom actions with element targeting and eased zoom-out.
 ## [0.0.5] - 2026-08-10
 
 - Added separate synchronized Before and After GIF artifacts and three-file export.

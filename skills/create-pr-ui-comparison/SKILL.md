@@ -30,6 +30,8 @@ Use `resize` whenever changing viewport dimensions is part of the behavior or re
 
 For a breakpoint-specific change, start on one side of the relevant breakpoint and cross it during the recording instead of showing only a fixed target state. The initial `viewport` and every resize target use the same 320 by 240 minimum and 3840 by 2160 maximum.
 
-The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action accepts `width`, `height`, and optional `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
+Use `zoom` sparingly to orient viewers before a detailed interaction or to draw attention to the affected region. A zoom action with a locator smoothly moves the recording camera toward that element and remains zoomed for following actions. The default scale is 1.8 and the default transition is 800 milliseconds. Use `{ "type": "zoom", "scale": 1 }` to smoothly return to the full frame. Prefer scales from 1.4 to 2.2, allow time for viewers to orient before interacting, and avoid rapid or repeated zooms that feel jarring. Zoom is a camera effect only; it must not replace the clicks, resizing, scrolling, or other behavior that demonstrates the change.
+
+The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action accepts `width`, `height`, and optional `durationMs`. A zoom action accepts an optional `locator`, `scale`, and `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
 
 After the tool returns, report the GIF path, whether the candidate included uncommitted changes, and the exact baseline and candidate SHAs. Remind the user to regenerate after committing and pushing when the candidate was dirty.

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import * as vscode from 'vscode';
-import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ScenarioAction, Viewport } from './model';
+import type { ActionTiming, CaptureRegion, CaptureResult, ComparisonScenario, ScenarioAction, Viewport, ZoomCue } from './model';
 
 export async function captureScenario(
 	baseUrl: string,
@@ -27,6 +27,7 @@ export async function captureScenario(
 		await page.goto(initialUrl, { waitUntil: 'networkidle' });
 		await installCursorOverlay(page);
 		const regionSamples: CaptureRegion[] = [];
+		const zoomCues: ZoomCue[] = [];
 		if (focusLocator) {
 			await page.locator(focusLocator).waitFor({ state: 'visible' });
 			const initialRegion = await measureFocusRegion(page, focusLocator, focusPadding);
@@ -36,12 +37,19 @@ export async function captureScenario(
 			regionSamples.push(initialRegion);
 		}
 		const replayOffsetMs = performance.now() - captureStartedAt;
-		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, token);
+		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, zoomCues, token);
 		await context.close();
 		if (!video) {
 			throw new Error('Playwright did not create a video for the comparison.');
 		}
-		return { videoPath: await video.path(), timings, replayOffsetMs, region: unionRegions(regionSamples) };
+		return {
+			videoPath: await video.path(),
+			timings,
+			replayOffsetMs,
+			recordingSize,
+			zoomCues,
+			region: unionRegions(regionSamples),
+		};
 	} finally {
 		await browser.close();
 	}
@@ -82,6 +90,7 @@ async function replayScenario(
 	focusLocator: string | undefined,
 	focusPadding: number,
 	regionSamples: CaptureRegion[],
+	zoomCues: ZoomCue[],
 	token: vscode.CancellationToken,
 ): Promise<ActionTiming[]> {
 	const timings: ActionTiming[] = [];
@@ -91,6 +100,18 @@ async function replayScenario(
 			throw new vscode.CancellationError();
 		}
 		const startedAtMs = performance.now() - recordingStartedAt;
+		if (action.type === 'zoom') {
+			const scale = action.scale ?? (action.locator ? 1.8 : 1);
+			let target: CaptureRegion | undefined;
+			if (action.locator) {
+				await page.locator(action.locator).waitFor({ state: 'visible' });
+				target = await measureElementRegion(page, action.locator);
+				if (!target) {
+					throw new Error(`Zoom locator "${action.locator}" did not have visible bounds.`);
+				}
+			}
+			zoomCues.push({ actionIndex: index, target, scale, durationMs: action.durationMs ?? 800 });
+		}
 		await performAction(page, baseUrl, action);
 		const holdAfterMs = 'holdAfterMs' in action ? action.holdAfterMs : undefined;
 		if (holdAfterMs) {
@@ -130,6 +151,14 @@ async function measureFocusRegion(
 	const right = Math.min(viewport.width, box.x + box.width + padding);
 	const bottom = Math.min(viewport.height, box.y + box.height + padding);
 	return { x, y, width: right - x, height: bottom - y };
+}
+
+async function measureElementRegion(page: Page, locator: string): Promise<CaptureRegion | undefined> {
+	const box = await page.locator(locator).boundingBox();
+	if (!box) {
+		return undefined;
+	}
+	return { x: box.x, y: box.y, width: box.width, height: box.height };
 }
 
 function unionRegions(regions: CaptureRegion[]): CaptureRegion | undefined {
@@ -179,6 +208,9 @@ async function performAction(page: Page, baseUrl: string, action: ScenarioAction
 			return;
 		case 'resize':
 			await animateViewportResize(page, action.width, action.height, action.durationMs ?? 800);
+			return;
+		case 'zoom':
+			await page.waitForTimeout(action.durationMs ?? 800);
 			return;
 		case 'waitFor':
 			await page.locator(action.locator).waitFor({ state: action.state, timeout: action.timeoutMs });

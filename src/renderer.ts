@@ -8,6 +8,7 @@ import type {
 	ComparisonLayout,
 	ResolvedComparisonLayout,
 	Viewport,
+	ZoomCue,
 } from './model';
 
 const EXTREME_WIDE_ASPECT_RATIO = 3;
@@ -31,6 +32,10 @@ export async function renderComparisonGif(
 	afterTimings: ActionTiming[],
 	beforeReplayOffsetMs: number,
 	afterReplayOffsetMs: number,
+	beforeRecordingSize: Viewport,
+	afterRecordingSize: Viewport,
+	beforeZoomCues: ZoomCue[],
+	afterZoomCues: ZoomCue[],
 	layoutPreference: ComparisonLayout,
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
@@ -52,6 +57,10 @@ export async function renderComparisonGif(
 		afterTimings,
 		beforeReplayOffsetMs,
 		afterReplayOffsetMs,
+		beforeRecordingSize,
+		afterRecordingSize,
+		beforeZoomCues,
+		afterZoomCues,
 		layout,
 	);
 	const args = [
@@ -118,15 +127,37 @@ function createFilter(
 	afterTimings: ActionTiming[],
 	beforeReplayOffsetMs: number,
 	afterReplayOffsetMs: number,
+	beforeRecordingSize: Viewport,
+	afterRecordingSize: Viewport,
+	beforeZoomCues: ZoomCue[],
+	afterZoomCues: ZoomCue[],
 	layout: ResolvedComparisonLayout,
 ): string {
 	const targetDurations = resolveSynchronizedDurations(beforeTimings, afterTimings);
-	const beforeTimeline = synchronizeTimeline(0, 'before', beforeTimings, beforeReplayOffsetMs, targetDurations);
-	const afterTimeline = synchronizeTimeline(1, 'after', afterTimings, afterReplayOffsetMs, targetDurations);
+	const beforeTimeline = synchronizeTimeline(
+		0,
+		'before',
+		beforeTimings,
+		beforeReplayOffsetMs,
+		targetDurations,
+		beforeRegion,
+		beforeRecordingSize,
+		layout,
+		beforeZoomCues,
+	);
+	const afterTimeline = synchronizeTimeline(
+		1,
+		'after',
+		afterTimings,
+		afterReplayOffsetMs,
+		targetDurations,
+		afterRegion,
+		afterRecordingSize,
+		layout,
+		afterZoomCues,
+	);
 	const leftLabel = escapeDrawText(beforeLabel);
 	const rightLabel = escapeDrawText(afterLabel);
-	const scale = layout === 'vertical' ? 'scale=960:-2' : 'scale=-2:360';
-	const prepare = (region: CaptureRegion | undefined) => `${crop(region)}fps=12,${scale}:flags=lanczos,setsar=1`;
 	const text = (label: string, corner: 'left' | 'right') => [
 		`drawtext=text='${label}'`,
 		'fontcolor=white',
@@ -141,8 +172,8 @@ function createFilter(
 	return [
 		...beforeTimeline.filters,
 		...afterTimeline.filters,
-		`${beforeTimeline.output}${prepare(beforeRegion)},${text(leftLabel, 'left')},${border}[beforePane]`,
-		`${afterTimeline.output}${prepare(afterRegion)},${text(rightLabel, 'right')},${border}[afterPane]`,
+		`${beforeTimeline.output}${text(leftLabel, 'left')},${border}[beforePane]`,
+		`${afterTimeline.output}${text(rightLabel, 'right')},${border}[afterPane]`,
 		'[beforePane]split=2[beforeForStack][beforeIndividual]',
 		'[afterPane]split=2[afterForStack][afterIndividual]',
 		layout === 'vertical'
@@ -179,8 +210,19 @@ function synchronizeTimeline(
 	timings: ActionTiming[],
 	replayOffsetMs: number,
 	targetDurations: number[],
+	region: CaptureRegion | undefined,
+	recordingSize: Viewport,
+	layout: ResolvedComparisonLayout,
+	zoomCues: ZoomCue[],
 ): { filters: string[]; output: string } {
 	const filters: string[] = [];
+	const geometry = resolvePaneGeometry(region, recordingSize, layout);
+	const cues = new Map(zoomCues.map(cue => [cue.actionIndex, cue]));
+	let camera: CameraState = {
+		scale: 1,
+		centerX: geometry.output.width / 2,
+		centerY: geometry.output.height / 2,
+	};
 	const sources = timings.map((_, index) => `[${prefix}Source${index}]`).join('');
 	if (timings.length > 1) {
 		filters.push(`[${input}:v]split=${timings.length}${sources}`);
@@ -191,12 +233,105 @@ function synchronizeTimeline(
 		const start = seconds(replayOffsetMs + timing.startedAtMs);
 		const end = seconds(replayOffsetMs + timing.endedAtMs);
 		const rate = targetDurations[index] / duration(timing);
-		filters.push(`${source}trim=start=${start}:end=${end},setpts=(PTS-STARTPTS)*${decimal(rate)}${segment}`);
+		const cue = cues.get(index);
+		const nextCamera = cue ? resolveCameraState(cue, geometry) : camera;
+		const transitionMs = cue
+			? Math.min(cue.durationMs, duration(timing)) * rate
+			: 0;
+		const cameraFilter = createCameraFilter(camera, nextCamera, transitionMs, geometry.output);
+		filters.push([
+			`${source}trim=start=${start}:end=${end}`,
+			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
+			`${crop(region)}fps=12`,
+			`scale=${geometry.output.width}:${geometry.output.height}:flags=lanczos`,
+			'setsar=1',
+			cameraFilter,
+		].filter(Boolean).join(',') + segment);
+		camera = nextCamera;
 		return segment;
 	});
 	const output = `[${prefix}Timeline]`;
 	filters.push(`${segments.join('')}concat=n=${segments.length}:v=1:a=0${output}`);
 	return { filters, output };
+}
+
+interface CameraState {
+	scale: number;
+	centerX: number;
+	centerY: number;
+}
+
+interface PaneGeometry {
+	base: CaptureRegion;
+	output: Viewport;
+}
+
+function resolvePaneGeometry(
+	region: CaptureRegion | undefined,
+	recordingSize: Viewport,
+	layout: ResolvedComparisonLayout,
+): PaneGeometry {
+	const base = region ?? { x: 0, y: 0, width: recordingSize.width, height: recordingSize.height };
+	if (layout === 'vertical') {
+		const width = 960;
+		return { base, output: { width, height: even(base.height * width / base.width) } };
+	}
+	const height = 360;
+	return { base, output: { width: even(base.width * height / base.height), height } };
+}
+
+function resolveCameraState(cue: ZoomCue, geometry: PaneGeometry): CameraState {
+	if (cue.scale === 1 || !cue.target) {
+		return {
+			scale: 1,
+			centerX: geometry.output.width / 2,
+			centerY: geometry.output.height / 2,
+		};
+	}
+	const targetCenterX = cue.target.x + cue.target.width / 2;
+	const targetCenterY = cue.target.y + cue.target.height / 2;
+	return {
+		scale: cue.scale,
+		centerX: (targetCenterX - geometry.base.x) * geometry.output.width / geometry.base.width,
+		centerY: (targetCenterY - geometry.base.y) * geometry.output.height / geometry.base.height,
+	};
+}
+
+function createCameraFilter(
+	start: CameraState,
+	end: CameraState,
+	transitionMs: number,
+	output: Viewport,
+): string {
+	if (start.scale === 1 && end.scale === 1) {
+		return '';
+	}
+	const frames = Math.max(1, Math.round(transitionMs * 12 / 1000));
+	const progress = frames <= 1 ? '1' : `min(1,on/${frames - 1})`;
+	const eased = `(0.5-0.5*cos(PI*${progress}))`;
+	const zoom = interpolate(start.scale, end.scale, eased);
+	const centerX = interpolate(start.centerX, end.centerX, eased);
+	const centerY = interpolate(start.centerY, end.centerY, eased);
+	return [
+		`zoompan=z='${zoom}'`,
+		`x='max(0,min(iw-iw/zoom,${centerX}-iw/(2*zoom)))'`,
+		`y='max(0,min(ih-ih/zoom,${centerY}-ih/(2*zoom)))'`,
+		'd=1',
+		`s=${output.width}x${output.height}`,
+		'fps=12',
+	].join(':');
+}
+
+function interpolate(start: number, end: number, progress: string): string {
+	if (start === end) {
+		return decimal(start);
+	}
+	return `${decimal(start)}+(${decimal(end - start)})*${progress}`;
+}
+
+function even(value: number): number {
+	const rounded = Math.max(2, Math.round(value));
+	return rounded % 2 === 0 ? rounded : rounded + 1;
 }
 
 function duration(timing: ActionTiming): number {

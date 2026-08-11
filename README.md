@@ -45,7 +45,19 @@ The workflow does not create or modify files in the target repository. Agents sh
 
 Set `focusLocator` for a stable region such as `role=navigation`, `data-testid=menu-bar`, or `#settings-panel`. Auto layout remains side by side for ordinary desktop and mobile captures. A region such as a full-width menu bar switches to top and bottom when its aspect ratio reaches 3:1.
 
-Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
+Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
+
+Zoom is a recording-camera effect and does not change page layout, browser zoom, or interaction coordinates. It smoothly moves toward a target element and remains active for following actions until another zoom changes it. Use scale `1` without a locator to return to the full frame:
+
+```json
+[
+	{ "type": "zoom", "locator": "role=toolbar", "scale": 1.8, "durationMs": 900, "holdAfterMs": 400 },
+	{ "type": "click", "locator": "role=button[name=\"More actions\"]", "holdAfterMs": 1000 },
+	{ "type": "zoom", "scale": 1, "durationMs": 900, "holdAfterMs": 400 }
+]
+```
+
+Camera movement uses cosine easing for a smooth arrival and departure. Moderate scales and short holds help viewers orient without making the comparison feel busy.
 
 Use resize actions whenever viewport dimensions are part of the behavior being demonstrated. This includes breakpoint changes, fluid reflow, text wrapping, overflow, sticky or fixed positioning, viewport units, resize observers, canvas sizing, sidebars, and layout stability. Resize is optional and should not be added to unrelated comparisons.
 

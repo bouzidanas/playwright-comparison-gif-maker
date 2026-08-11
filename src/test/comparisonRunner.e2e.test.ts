@@ -38,7 +38,9 @@ suite('Comparison runner end to end', function () {
 						{ type: 'hold', durationMs: 300 },
 						{ type: 'resize', width: 360, height: 480, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'resize', width: 640, height: 480, durationMs: 500, holdAfterMs: 300 },
+						{ type: 'zoom', locator: 'role=button[name="Toggle panel"]', scale: 1.8, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'click', locator: 'role=button[name="Toggle panel"]', holdAfterMs: 700 },
+						{ type: 'zoom', scale: 1, durationMs: 500, holdAfterMs: 300 },
 					],
 				},
 			};
@@ -60,8 +62,8 @@ suite('Comparison runner end to end', function () {
 			const session = JSON.parse(await readFile(path.join(result.sessionDirectory, 'session.json'), 'utf8')) as {
 				timings: { before: unknown[]; after: unknown[] };
 			};
-			assert.strictEqual(session.timings.before.length, 4);
-			assert.strictEqual(session.timings.after.length, 4);
+			assert.strictEqual(session.timings.before.length, 6);
+			assert.strictEqual(session.timings.after.length, 6);
 			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
 		} finally {
 			output.dispose();

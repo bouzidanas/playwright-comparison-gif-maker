@@ -45,6 +45,16 @@ suite('Comparison model', () => {
 		);
 	});
 
+	test('rejects zoom magnification without a target', () => {
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: { name: 'Invalid zoom', actions: [{ type: 'zoom', scale: 2 }] },
+			}),
+			/requires a locator/,
+		);
+	});
+
 	test('keeps a stable canvas large enough for every resize target', () => {
 		assert.deepStrictEqual(getRecordingSize(
 			{ width: 1280, height: 720 },

@@ -21,6 +21,7 @@ export type ScenarioAction =
 	| { type: 'press'; locator: string; key: string; holdAfterMs?: number }
 	| { type: 'scroll'; locator?: string; deltaX?: number; deltaY: number; holdAfterMs?: number }
 	| { type: 'resize'; width: number; height: number; durationMs?: number; holdAfterMs?: number }
+	| { type: 'zoom'; locator?: string; scale?: number; durationMs?: number; holdAfterMs?: number }
 	| { type: 'waitFor'; locator: string; state?: 'attached' | 'detached' | 'visible' | 'hidden'; timeoutMs?: number; holdAfterMs?: number }
 	| { type: 'hold'; durationMs: number };
 
@@ -51,10 +52,19 @@ export interface ActionTiming {
 	endedAtMs: number;
 }
 
+export interface ZoomCue {
+	actionIndex: number;
+	target?: CaptureRegion;
+	scale: number;
+	durationMs: number;
+}
+
 export interface CaptureResult {
 	videoPath: string;
 	timings: ActionTiming[];
 	replayOffsetMs: number;
+	recordingSize: Viewport;
+	zoomCues: ZoomCue[];
 	region?: CaptureRegion;
 }
 
@@ -143,6 +153,19 @@ function validateAction(action: ScenarioAction, index: number): void {
 				invalid('requires durationMs between 0 and 10000.');
 			}
 			return;
+		case 'zoom': {
+			const scale = action.scale ?? (action.locator ? 1.8 : 1);
+			if (!Number.isFinite(scale) || scale < 1 || scale > 4) {
+				invalid('requires scale between 1 and 4.');
+			}
+			if (scale > 1 && !action.locator?.trim()) {
+				invalid('requires a locator when scale is greater than 1.');
+			}
+			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
+				invalid('requires durationMs between 0 and 10000.');
+			}
+			return;
+		}
 		case 'waitFor':
 			if (!action.locator?.trim()) {
 				invalid('requires a locator.');

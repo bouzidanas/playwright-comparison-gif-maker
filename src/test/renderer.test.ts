@@ -21,13 +21,20 @@ suite('Comparison renderer', function () {
 			await createVideo(ffmpegPath, before, '0xc84b31');
 			await createVideo(ffmpegPath, after, '0x2e7d5b');
 			const menuBar = { x: 20, y: 20, width: 600, height: 80 };
+			const zoomTarget = { x: 220, y: 30, width: 120, height: 40 };
 			const beforeTimings = [
-				{ index: 0, type: 'hold' as const, startedAtMs: 0, endedAtMs: 200 },
-				{ index: 1, type: 'resize' as const, startedAtMs: 200, endedAtMs: 1_000 },
+				{ index: 0, type: 'zoom' as const, startedAtMs: 0, endedAtMs: 300 },
+				{ index: 1, type: 'hold' as const, startedAtMs: 300, endedAtMs: 700 },
+				{ index: 2, type: 'zoom' as const, startedAtMs: 700, endedAtMs: 1_000 },
 			];
 			const afterTimings = [
-				{ index: 0, type: 'hold' as const, startedAtMs: 0, endedAtMs: 600 },
-				{ index: 1, type: 'resize' as const, startedAtMs: 600, endedAtMs: 1_000 },
+				{ index: 0, type: 'zoom' as const, startedAtMs: 0, endedAtMs: 400 },
+				{ index: 1, type: 'hold' as const, startedAtMs: 400, endedAtMs: 600 },
+				{ index: 2, type: 'zoom' as const, startedAtMs: 600, endedAtMs: 1_000 },
+			];
+			const zoomCues = [
+				{ actionIndex: 0, target: zoomTarget, scale: 2, durationMs: 300 },
+				{ actionIndex: 2, scale: 1, durationMs: 300 },
 			];
 			const rendered = await renderComparisonGif(
 				before,
@@ -42,6 +49,10 @@ suite('Comparison renderer', function () {
 				afterTimings,
 				0,
 				0,
+				{ width: 640, height: 480 },
+				{ width: 640, height: 480 },
+				zoomCues,
+				zoomCues,
 				'vertical',
 				new vscode.CancellationTokenSource().token,
 				() => undefined,
