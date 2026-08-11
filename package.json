@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -62,7 +62,7 @@
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
         "modelDescription": "Creates a labeled Before and After comparison without creating or modifying files in the user's repository. Animation is the default and must be used whenever anything happens or changes, including any event, interaction, hover, transition, loading sequence, resize, zoom, scroll, opening, closing, or state mutation. Set outputMode to image only when the user explicitly requests static images or the subject is truly motionless and requires no actions at all. Image mode accepts an empty action list only and captures the settled initial route as PNG files. When uncertain, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, stores artifacts outside the repository, and opens a preview. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable. The start and optional install commands execute project code and require user confirmation.",
-        "userDescription": "Create static PNG or animated GIF UI comparisons without modifying repository files.",
+        "userDescription": "Create synchronized GIF UI comparisons by default, or static PNGs only for explicit, completely motionless cases.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
         "icon": "$(record)",
@@ -82,6 +82,12 @@
                 "image"
               ],
               "description": "Output type. animation is the default and is required whenever anything happens or changes. image is only for explicit or truly motionless, action-free initial-route PNG comparisons."
+            },
+            "frameRate": {
+              "type": "integer",
+              "minimum": 5,
+              "maximum": 30,
+              "description": "Animated GIF frame rate. Defaults to 24. Use 30 for fast visual events; lower values reduce file size for slow motion. Not available in image mode."
             },
             "colorScheme": {
               "type": "string",

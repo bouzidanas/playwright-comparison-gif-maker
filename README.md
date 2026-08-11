@@ -1,6 +1,6 @@
 # PR UI Compare
 
-PR UI Compare creates labeled static PNG or animated GIF comparisons for a pull request by evaluating the same Playwright scenario against a baseline Git revision and the current working tree.
+PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison is a narrow exception for explicit, completely motionless cases. Both evaluate the same source against a baseline Git revision and the current working tree.
 
 The intended workflow is straightforward. Implement and test a visible UI change, commit and push when the final artifact is needed, generate the comparison, review it in VS Code, then drag the exported GIF into the GitHub PR description. An open pull request is not required.
 
@@ -48,6 +48,8 @@ Create a static PR UI image comparison showing the card styling change against m
 ```
 
 The agent sets `outputMode` to `image` only for an explicit or truly motionless comparison. Image mode requires an empty action list and captures the settled initial route as-is. If anything happens or changes, including an event, interaction, transition, loading sequence, resize, zoom, scroll, opening, or closing, use animation. When the request is ambiguous, animation is always the default.
+
+Animated GIF frame rate is configurable from 5 to 30 fps and defaults to 24. Use 30 fps for fast visual events, short transitions, or detailed camera movement. Lower rates reduce file size for slow and simple motion. Static image mode does not accept frame rate.
 
 Use `colorScheme` to load both browser contexts in `light`, `dark`, or `system` mode. It emulates `prefers-color-scheme` before navigation so pages initialize in the requested appearance. For a direct light-versus-dark image, set `beforeColorScheme` and `afterColorScheme` independently:
 

@@ -14,6 +14,7 @@ import type {
 } from './model';
 
 const EXTREME_WIDE_ASPECT_RATIO = 3;
+export const DEFAULT_ANIMATION_FRAME_RATE = 24;
 
 export interface RenderedGifs {
 	comparisonGifPath: string;
@@ -113,6 +114,7 @@ export async function renderComparisonGif(
 	borderColor: string,
 	beforeLabelAlignment: LabelAlignment,
 	afterLabelAlignment: LabelAlignment,
+	frameRate: number,
 	layoutPreference: ComparisonLayout,
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
@@ -142,6 +144,7 @@ export async function renderComparisonGif(
 		borderColor,
 		beforeLabelAlignment,
 		afterLabelAlignment,
+		frameRate,
 		layout,
 	);
 	const args = [
@@ -233,6 +236,7 @@ function createFilter(
 	borderColor: string,
 	beforeLabelAlignment: LabelAlignment,
 	afterLabelAlignment: LabelAlignment,
+	frameRate: number,
 	layout: ResolvedComparisonLayout,
 ): string {
 	const targetDurations = resolveSynchronizedDurations(beforeTimings, afterTimings);
@@ -248,6 +252,7 @@ function createFilter(
 		beforeResizeCues,
 		beforeZoomCues,
 		borderColor,
+		frameRate,
 	);
 	const afterTimeline = synchronizeTimeline(
 		1,
@@ -261,6 +266,7 @@ function createFilter(
 		afterResizeCues,
 		afterZoomCues,
 		borderColor,
+		frameRate,
 	);
 	const leftLabel = escapeDrawText(beforeLabel);
 	const rightLabel = escapeDrawText(afterLabel);
@@ -426,6 +432,7 @@ function synchronizeTimeline(
 	resizeCues: ResizeCue[],
 	zoomCues: ZoomCue[],
 	backgroundColor: string,
+	frameRate: number,
 ): { filters: string[]; output: string } {
 	const filters: string[] = [];
 	const geometry = resolvePaneGeometry(region, recordingSize, layout);
@@ -461,6 +468,7 @@ function synchronizeTimeline(
 				resizeTransitionMs,
 				recordingSize,
 				backgroundColor,
+				frameRate,
 			);
 		const cue = cues.get(index);
 		const cameraOffsetX = region ? 0 : resolveResizeOffset(viewport, resizeAnchor, recordingSize.width);
@@ -468,11 +476,11 @@ function synchronizeTimeline(
 		const transitionMs = cue
 			? Math.min(cue.durationMs, duration(timing)) * rate
 			: 0;
-		const cameraFilter = createCameraFilter(camera, nextCamera, transitionMs, geometry.output);
+		const cameraFilter = createCameraFilter(camera, nextCamera, transitionMs, geometry.output, frameRate);
 		filters.push([
 			`${source}trim=start=${start}:end=${end}`,
 			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
-			'fps=12',
+			`fps=${frameRate}`,
 			placementFilter,
 			crop(region),
 			'setsar=1',
@@ -503,11 +511,12 @@ function createResizePlacementFilter(
 	transitionMs: number,
 	recordingSize: Viewport,
 	backgroundColor: string,
+	frameRate: number,
 ): string {
 	if (anchor === 'right' && start.width === recordingSize.width && end.width === recordingSize.width) {
 		return '';
 	}
-	const frames = Math.max(1, Math.round(transitionMs * 12 / 1000));
+	const frames = Math.max(1, Math.round(transitionMs * frameRate / 1000));
 	const progress = frames <= 1 ? '1' : `min(1,n/${frames - 1})`;
 	const eased = `(0.5-0.5*cos(PI*${progress}))`;
 	const width = interpolate(start.width, end.width, eased);
@@ -566,11 +575,12 @@ function createCameraFilter(
 	end: CameraState,
 	transitionMs: number,
 	output: Viewport,
+	frameRate = DEFAULT_ANIMATION_FRAME_RATE,
 ): string {
 	if (start.scale === 1 && end.scale === 1) {
 		return '';
 	}
-	const frames = Math.max(1, Math.round(transitionMs * 12 / 1000));
+	const frames = Math.max(1, Math.round(transitionMs * frameRate / 1000));
 	const progress = frames <= 1 ? '1' : `min(1,on/${frames - 1})`;
 	const eased = `(0.5-0.5*cos(PI*${progress}))`;
 	const zoom = interpolate(start.scale, end.scale, eased);
@@ -582,7 +592,7 @@ function createCameraFilter(
 		`y='max(0,min(ih-ih/zoom,${centerY}-ih/(2*zoom)))'`,
 		'd=1',
 		`s=${output.width}x${output.height}`,
-		'fps=12',
+		`fps=${frameRate}`,
 	].join(':');
 }
 

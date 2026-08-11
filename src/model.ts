@@ -36,6 +36,7 @@ export interface ComparisonScenario {
 
 export interface ComparisonRequest {
 	outputMode?: ComparisonOutputMode;
+	frameRate?: number;
 	colorScheme?: BrowserColorScheme;
 	beforeColorScheme?: BrowserColorScheme;
 	afterColorScheme?: BrowserColorScheme;
@@ -118,6 +119,7 @@ interface ComparisonResultBase {
 
 export interface AnimationComparisonResult extends ComparisonResultBase {
 	outputMode: 'animation';
+	frameRate: number;
 	gifPath: string;
 	beforeGifPath: string;
 	afterGifPath: string;
@@ -152,6 +154,14 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	}
 	if (request.outputMode === 'image' && request.scenario.actions.length > 0) {
 		throw new Error('Static image comparisons cannot contain actions. Use animation mode whenever anything happens or changes.');
+	}
+	if (request.frameRate !== undefined) {
+		if ((request.outputMode ?? 'animation') === 'image') {
+			throw new Error('Frame rate is only available for animated GIF comparisons.');
+		}
+		if (!Number.isInteger(request.frameRate) || request.frameRate < 5 || request.frameRate > 30) {
+			throw new Error('Frame rate must be an integer between 5 and 30 fps.');
+		}
 	}
 	request.scenario.actions.forEach((action, index) => validateAction(action, index));
 	if (request.focusPadding !== undefined && (!Number.isFinite(request.focusPadding) || request.focusPadding < 0 || request.focusPadding > 256)) {

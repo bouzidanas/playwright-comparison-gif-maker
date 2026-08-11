@@ -54,6 +54,23 @@ suite('Comparison model', () => {
 		);
 	});
 
+	test('validates animation frame rate', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({ ...validRequest, frameRate: 30 }));
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, frameRate: 60 }),
+			/integer between 5 and 30/,
+		);
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				outputMode: 'image',
+				frameRate: 24,
+				scenario: { name: 'Static', actions: [] },
+			}),
+			/only available for animated GIF/,
+		);
+	});
+
 	test('rejects a malformed scenario action', () => {
 		assert.throws(
 			() => validateComparisonRequest({

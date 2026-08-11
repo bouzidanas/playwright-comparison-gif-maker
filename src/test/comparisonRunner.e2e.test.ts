@@ -32,6 +32,7 @@ suite('Comparison runner end to end', function () {
 				beforeLabelAlignment: 'bottom-left',
 				afterLabelAlignment: 'bottom-right',
 				borderColor: '#2f81f7',
+				frameRate: 30,
 				viewport: { width: 640, height: 480 },
 				scenario: {
 					name: 'Responsive panel fix',
@@ -58,6 +59,7 @@ suite('Comparison runner end to end', function () {
 				assert.fail('Expected an animation comparison result.');
 			}
 			assert.strictEqual(result.layout, 'horizontal');
+			assert.strictEqual(result.frameRate, 30);
 			assert.match(result.beforeLabel, /^Before \([0-9a-f]{8}\)$/);
 			assert.match(result.afterLabel, /^After \([0-9a-f]{8}\)$/);
 			assert.ok((await stat(result.gifPath)).size > 1_000);

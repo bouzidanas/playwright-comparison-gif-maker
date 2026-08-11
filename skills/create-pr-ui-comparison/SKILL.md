@@ -1,6 +1,6 @@
 ---
 name: create-pr-ui-comparison
-description: "Create static PNG or synchronized GIF Before and After UI comparisons without modifying repository files. Use when: the user asks for a PR visual comparison, image or screenshot comparison, theme comparison, comparison against a Git ref, or recorded UI fix demonstration."
+description: "Create synchronized GIF Before and After UI comparisons by default, with static PNG as a narrow exception for explicit, completely motionless cases. Use when: the user asks for a PR visual comparison, comparison against a Git ref, screenshot comparison, or recorded UI fix demonstration."
 argument-hint: Describe the UI behavior to demonstrate
 ---
 
@@ -11,6 +11,8 @@ Use the `pr-ui-compare_createComparison` tool to produce a reviewable artifact o
 Animation is the default. Use `outputMode: image` only when the user explicitly asks for static images or the comparison is truly motionless. Truly static means nothing happens during the demonstration: no events, clicks, hovers, key presses, transitions, loading sequence, resizing, zooming, scrolling, opening, closing, or state changes. Image mode requires an empty action list and captures only the settled initial route. When there is any doubt, use `animation`.
 
 Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or initial layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files and is required for every scenario action.
+
+For animation, set `frameRate` from 5 to 30 fps. The default is 24 fps. Use 30 fps when the evidence contains fast visual events, short transitions, quick orientation changes, or camera zoom where intermediate frames matter. Use 15 fps or lower only for slow, simple motion when reducing file size matters more than temporal detail. Do not set frame rate for image mode.
 
 Set `colorScheme` to `light`, `dark`, or `system` when the comparison should render both versions in one browser appearance. This controls the `prefers-color-scheme` media feature before the page loads, so responsive themes initialize correctly. `system` disables explicit emulation and is the default.
 

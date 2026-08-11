@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import ffmpegPath from 'ffmpeg-static';
 import * as vscode from 'vscode';
-import { renderComparisonGif, resolveSynchronizedDurations } from '../renderer';
+import { DEFAULT_ANIMATION_FRAME_RATE, renderComparisonGif, resolveSynchronizedDurations } from '../renderer';
 
 suite('Comparison renderer', function () {
 	this.timeout(30_000);
@@ -67,6 +67,7 @@ suite('Comparison renderer', function () {
 				'#2f81f7',
 				'bottom-left',
 				'bottom-right',
+				30,
 				'vertical',
 				new vscode.CancellationTokenSource().token,
 				() => undefined,
@@ -99,6 +100,10 @@ suite('Comparison renderer', function () {
 				{ index: 1, type: 'hold', startedAtMs: 500, endedAtMs: 900 },
 			],
 		), [500, 750]);
+	});
+
+	test('renders camera motion at a smooth frame cadence', () => {
+		assert.strictEqual(DEFAULT_ANIMATION_FRAME_RATE, 24);
 	});
 
 	test('keeps a shrinking page centered in the fixed canvas', async () => {
@@ -141,6 +146,7 @@ suite('Comparison renderer', function () {
 				'#30363d',
 				'top-left',
 				'top-right',
+				24,
 				'horizontal',
 				new vscode.CancellationTokenSource().token,
 				() => undefined,

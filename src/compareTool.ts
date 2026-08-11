@@ -26,6 +26,7 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 		const result = await this.execute(options.input, token);
 		const summary = {
 			outputMode: result.outputMode,
+			...(result.outputMode === 'animation' ? { frameRate: result.frameRate } : {}),
 			comparisonPath: result.comparisonPath,
 			beforePath: result.beforePath,
 			afterPath: result.afterPath,

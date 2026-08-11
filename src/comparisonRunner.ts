@@ -135,6 +135,7 @@ export class ComparisonRunner {
 				request.borderColor ?? '#30363d',
 				request.beforeLabelAlignment ?? 'top-left',
 				request.afterLabelAlignment ?? 'top-right',
+				request.frameRate ?? 24,
 				layout,
 				token,
 				text => this.output.append(text),
@@ -142,6 +143,7 @@ export class ComparisonRunner {
 
 			const result: ComparisonResult = {
 				outputMode: 'animation',
+				frameRate: request.frameRate ?? 24,
 				sessionId,
 				sessionDirectory,
 				comparisonPath: rendered.comparisonGifPath,

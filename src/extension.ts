@@ -102,12 +102,26 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 	if (!output) {
 		return undefined;
 	}
+	const frameRate = output.value === 'animation'
+		? await vscode.window.showQuickPick([
+			{ label: '24 fps', description: 'Smooth default', value: 24 },
+			{ label: '30 fps', description: 'Fast visual events and transitions', value: 30 },
+			{ label: '15 fps', description: 'Slower motion and smaller files', value: 15 },
+		], {
+			title: 'PR UI Compare (2/10)',
+			placeHolder: 'Choose the animated GIF frame rate',
+			ignoreFocusOut: true,
+		})
+		: undefined;
+	if (output.value === 'animation' && !frameRate) {
+		return undefined;
+	}
 	const colorScheme = await vscode.window.showQuickPick([
 		{ label: 'System', description: 'Use host browser preference', value: 'system' as const },
 		{ label: 'Light', description: 'Emulate prefers-color-scheme: light', value: 'light' as const },
 		{ label: 'Dark', description: 'Emulate prefers-color-scheme: dark', value: 'dark' as const },
 	], {
-		title: 'PR UI Compare (2/9)',
+		title: `PR UI Compare (${output.value === 'animation' ? '3/10' : '2/9'})`,
 		placeHolder: 'Choose the browser color scheme',
 		ignoreFocusOut: true,
 	});
@@ -189,6 +203,7 @@ async function collectRequest(workspacePath: string): Promise<ComparisonRequest 
 	}
 	return {
 		outputMode: output.value,
+		frameRate: frameRate?.value,
 		colorScheme: colorScheme.value,
 		baseRef,
 		startCommand,

@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-08-11
+
+- Increased animation and camera zoom rendering to 24 fps for smoother motion.
+- Made GIF-first discovery explicit, with static PNG retained only as a narrow motionless exception.
+- Added agent-configurable animation frame rates from 5 to 30 fps.
 ## [0.0.11] - 2026-08-11
 
 - Made animation the conservative default and restricted image mode to action-free, truly static comparisons.
