@@ -200,6 +200,12 @@ suite('Comparison model', () => {
 		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, menuBar, menuBar), 'vertical');
 	});
 
+	test('keeps an exact three-to-one focused region side by side', () => {
+		const region = { x: 0, y: 0, width: 600, height: 200 };
+		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, region, region), 'horizontal');
+		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, region, region, 'vertical'), 'horizontal');
+	});
+
 	test('honors an explicit layout override', () => {
 		const menuBar = { x: 0, y: 0, width: 1200, height: 80 };
 		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, menuBar, menuBar, 'horizontal'), 'horizontal');

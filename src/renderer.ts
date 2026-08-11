@@ -208,14 +208,14 @@ export function resolveComparisonLayout(
 	afterRegion: CaptureRegion | undefined,
 	preference: ComparisonLayout = 'auto',
 ): ResolvedComparisonLayout {
-	if (preference !== 'auto') {
-		return preference;
+	if (preference === 'horizontal') {
+		return 'horizontal';
 	}
 	const regions = [beforeRegion, afterRegion].filter((region): region is CaptureRegion => Boolean(region));
 	const widestAspectRatio = regions.length > 0
 		? Math.max(...regions.map(region => region.width / region.height))
 		: viewport.width / viewport.height;
-	return widestAspectRatio >= EXTREME_WIDE_ASPECT_RATIO ? 'vertical' : 'horizontal';
+	return widestAspectRatio > EXTREME_WIDE_ASPECT_RATIO ? 'vertical' : 'horizontal';
 }
 
 function createFilter(
@@ -240,11 +240,16 @@ function createFilter(
 	layout: ResolvedComparisonLayout,
 ): string {
 	const targetDurations = resolveSynchronizedDurations(beforeTimings, afterTimings);
+	const resizeDelayDurations = targetDurations.map((targetDuration, index) => {
+		const beforeCue = beforeResizeCues.find(cue => cue.actionIndex === index);
+		const afterCue = afterResizeCues.find(cue => cue.actionIndex === index);
+		return Math.min(Math.max(beforeCue?.delayMs ?? 0, afterCue?.delayMs ?? 0), targetDuration);
+	});
 	const resizeTransitionDurations = targetDurations.map((targetDuration, index) => {
 		const beforeCue = beforeResizeCues.find(cue => cue.actionIndex === index);
 		const afterCue = afterResizeCues.find(cue => cue.actionIndex === index);
-		const configuredDuration = Math.max(beforeCue?.durationMs ?? 0, afterCue?.durationMs ?? 0);
-		return Math.min(configuredDuration, targetDuration);
+		const capturedDuration = Math.max(beforeCue?.durationMs ?? 0, afterCue?.durationMs ?? 0);
+		return Math.min(capturedDuration, Math.max(0, targetDuration - resizeDelayDurations[index]));
 	});
 	const beforeTimeline = synchronizeTimeline(
 		0,
@@ -252,6 +257,7 @@ function createFilter(
 		beforeTimings,
 		beforeReplayOffsetMs,
 		targetDurations,
+		resizeDelayDurations,
 		resizeTransitionDurations,
 		beforeRegion,
 		beforeRecordingSize,
@@ -267,6 +273,7 @@ function createFilter(
 		afterTimings,
 		afterReplayOffsetMs,
 		targetDurations,
+		resizeDelayDurations,
 		resizeTransitionDurations,
 		afterRegion,
 		afterRecordingSize,
@@ -434,6 +441,7 @@ function synchronizeTimeline(
 	timings: ActionTiming[],
 	replayOffsetMs: number,
 	targetDurations: number[],
+	resizeDelayDurations: number[],
 	resizeTransitionDurations: number[],
 	region: CaptureRegion | undefined,
 	recordingSize: Viewport,
@@ -464,14 +472,38 @@ function synchronizeTimeline(
 		const rawSegment = `[${prefix}RawSegment${index}]`;
 		const start = seconds(replayOffsetMs + timing.startedAtMs);
 		const end = seconds(replayOffsetMs + timing.endedAtMs);
-		const rate = targetDurations[index] / duration(timing);
+		const segmentRate = targetDurations[index] / duration(timing);
 		const resizeCue = resizeCueMap.get(index);
+		const resizeDelayMs = resizeCue ? resizeDelayDurations[index] : 0;
 		const resizeTransitionMs = resizeCue ? resizeTransitionDurations[index] : 0;
-		filters.push([
-			`${source}trim=start=${start}:end=${end}`,
-			`setpts=(PTS-STARTPTS)*${decimal(rate)}`,
-			`fps=${frameRate}`,
-		].join(',') + rawSegment);
+		if (resizeCue) {
+			createSynchronizedResizeSegment(
+				filters,
+				source,
+				rawSegment,
+				prefix,
+				index,
+				start,
+				end,
+				duration(timing),
+				resizeCue.delayMs,
+				resizeCue.durationMs,
+				targetDurations[index],
+				resizeDelayMs,
+				resizeTransitionMs,
+				frameRate,
+			);
+		} else {
+			const targetFrames = frameCount(targetDurations[index], frameRate);
+			filters.push([
+				`${source}trim=start=${start}:end=${end}`,
+				`setpts=(PTS-STARTPTS)*${decimal(segmentRate)}`,
+				`fps=${frameRate}`,
+				`tpad=stop_mode=clone:stop=${targetFrames}`,
+				`trim=end_frame=${targetFrames}`,
+				`setpts=N/(${frameRate}*TB)`,
+			].join(',') + rawSegment);
+		}
 		const placedSegment = region
 			? rawSegment
 			: createResizePlacementFilters(
@@ -482,6 +514,7 @@ function synchronizeTimeline(
 				viewport,
 				resizeCue?.to ?? viewport,
 				resizeCue?.resizeMode ?? resizeMode,
+				resizeDelayMs,
 				resizeTransitionMs,
 				targetDurations[index],
 				recordingSize,
@@ -492,7 +525,7 @@ function synchronizeTimeline(
 		const cameraOffsetX = region ? 0 : resolveResizeOffset(viewport, resizeMode, recordingSize.width);
 		const nextCamera = cue ? resolveCameraState(cue, geometry, cameraOffsetX) : camera;
 		const transitionMs = cue
-			? Math.min(cue.durationMs, duration(timing)) * rate
+			? Math.min(cue.durationMs, duration(timing)) * segmentRate
 			: 0;
 		const cameraFilter = createCameraFilter(camera, nextCamera, transitionMs, geometry.output, frameRate);
 		const transforms = [
@@ -514,6 +547,59 @@ function synchronizeTimeline(
 	return { filters, output };
 }
 
+function createSynchronizedResizeSegment(
+	filters: string[],
+	source: string,
+	output: string,
+	prefix: string,
+	index: number,
+	startSeconds: string,
+	endSeconds: string,
+	sourceDurationMs: number,
+	sourceDelayMs: number,
+	sourceTransitionMs: number,
+	targetDurationMs: number,
+	targetDelayMs: number,
+	targetTransitionMs: number,
+	frameRate: number,
+): void {
+	const leadSourceMs = Math.min(sourceDelayMs, sourceDurationMs);
+	const transitionSourceMs = Math.min(sourceTransitionMs, Math.max(0, sourceDurationMs - leadSourceMs));
+	const holdSourceMs = Math.max(0, sourceDurationMs - leadSourceMs - transitionSourceMs);
+	const leadTargetMs = Math.min(targetDelayMs, targetDurationMs);
+	const transitionTargetMs = Math.min(targetTransitionMs, Math.max(0, targetDurationMs - leadTargetMs));
+	const holdTargetMs = Math.max(0, targetDurationMs - leadTargetMs - transitionTargetMs);
+	const targetFrames = frameCount(targetDurationMs, frameRate);
+	const phases = [
+		{ name: 'Lead', sourceMs: leadSourceMs, targetMs: leadTargetMs },
+		{ name: 'Transition', sourceMs: transitionSourceMs, targetMs: transitionTargetMs },
+		{ name: 'Hold', sourceMs: holdSourceMs, targetMs: holdTargetMs },
+	].filter(phase => phase.sourceMs > 1 && phase.targetMs > 1);
+	if (phases.length === 0) {
+		filters.push(`${source}trim=start=${startSeconds}:end=${endSeconds},setpts=PTS-STARTPTS,fps=${frameRate},tpad=stop_mode=clone:stop=${targetFrames},trim=end_frame=${targetFrames},setpts=N/(${frameRate}*TB)${output}`);
+		return;
+	}
+	const phaseSources = phases.map(phase => `[${prefix}Resize${phase.name}Source${index}]`).join('');
+	if (phases.length > 1) {
+		filters.push(`${source}split=${phases.length}${phaseSources}`);
+	}
+	let sourceOffsetMs = 0;
+	const phaseOutputs = phases.map((phase, phaseIndex) => {
+		const phaseSource = phases.length > 1 ? `[${prefix}Resize${phase.name}Source${index}]` : source;
+		const phaseOutput = `[${prefix}Resize${phase.name}${index}]`;
+		const phaseStart = decimal(Number(startSeconds) + sourceOffsetMs / 1000);
+		sourceOffsetMs += phase.sourceMs;
+		const phaseEnd = decimal(Number(startSeconds) + sourceOffsetMs / 1000);
+		filters.push(`${phaseSource}trim=start=${phaseStart}:end=${phaseEnd},setpts=(PTS-STARTPTS)*${decimal(phase.targetMs / phase.sourceMs)}${phaseOutput}`);
+		return phaseOutput;
+	});
+	filters.push(`${phaseOutputs.join('')}concat=n=${phaseOutputs.length}:v=1:a=0,fps=${frameRate},tpad=stop_mode=clone:stop=${targetFrames},trim=end_frame=${targetFrames},setpts=N/(${frameRate}*TB)${output}`);
+}
+
+function frameCount(milliseconds: number, frameRate: number): number {
+	return Math.max(1, Math.round(milliseconds * frameRate / 1000));
+}
+
 function resolveResizeOffset(viewport: Viewport, resizeMode: ResizeCue['resizeMode'], recordingWidth: number): number {
 	const slack = recordingWidth - viewport.width;
 	return resizeMode === 'keep-right-edge-fixed' ? slack : resizeMode === 'keep-window-centered' ? slack / 2 : 0;
@@ -527,6 +613,7 @@ function createResizePlacementFilters(
 	start: Viewport,
 	end: Viewport,
 	resizeMode: ResizeCue['resizeMode'],
+	delayMs: number,
 	transitionMs: number,
 	segmentDurationMs: number,
 	recordingSize: Viewport,
@@ -537,7 +624,8 @@ function createResizePlacementFilters(
 		return input;
 	}
 	const transitionSeconds = transitionMs / 1000;
-	const progress = transitionSeconds <= 0 ? '1' : `min(1,t/${decimal(transitionSeconds)})`;
+	const delaySeconds = delayMs / 1000;
+	const progress = transitionSeconds <= 0 ? '1' : `max(0,min(1,(t-${decimal(delaySeconds)})/${decimal(transitionSeconds)}))`;
 	const eased = `(0.5-0.5*cos(PI*${progress}))`;
 	const width = interpolate(start.width, end.width, eased);
 	const height = interpolate(start.height, end.height, eased);

@@ -38,6 +38,7 @@ suite('Comparison renderer', function () {
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
 					resizeMode: 'keep-window-centered' as const,
+					delayMs: 0,
 					durationMs: 300,
 				},
 			];
@@ -119,13 +120,15 @@ suite('Comparison renderer', function () {
 			const beforeTimings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 800 }];
 			const afterTimings = [{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 1_100 }];
 			for (const resizeMode of ['keep-right-edge-fixed', 'keep-left-edge-fixed', 'keep-window-centered'] as const) {
-				const resizeCues = [{
+				const beforeResizeCues = [{
 					actionIndex: 0,
 					from: { width: 640, height: 480 },
 					to: { width: 360, height: 480 },
 					resizeMode,
-					durationMs: 800,
+					delayMs: 100,
+					durationMs: 650,
 				}];
+				const afterResizeCues = [{ ...beforeResizeCues[0], durationMs: 1_000 }];
 				const modeDirectory = path.join(directory, resizeMode);
 				await mkdir(modeDirectory);
 				const rendered = await renderComparisonGif(
@@ -143,8 +146,8 @@ suite('Comparison renderer', function () {
 					0,
 					{ width: 640, height: 480 },
 					{ width: 640, height: 480 },
-					resizeCues,
-					resizeCues,
+					beforeResizeCues,
+					afterResizeCues,
 					[],
 					[],
 					'#30363d',

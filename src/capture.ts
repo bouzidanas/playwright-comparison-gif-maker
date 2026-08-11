@@ -3,6 +3,8 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright-core
 import * as vscode from 'vscode';
 import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
 
+const RESIZE_LEAD_IN_MS = 100;
+
 export const INITIAL_POINTER_STYLE = {
 	left: '-32px',
 	opacity: '0',
@@ -163,6 +165,7 @@ async function replayScenario(
 			throw new vscode.CancellationError();
 		}
 		const startedAtMs = performance.now() - recordingStartedAt;
+		let activeResizeCue: ResizeCue | undefined;
 		if (action.type === 'resize') {
 			const from = page.viewportSize();
 			if (!from) {
@@ -174,7 +177,7 @@ async function replayScenario(
 				anchor?: 'left' | 'right' | 'both';
 			};
 			const legacyMovingEdge = resizeAction.movingEdge ?? resizeAction.anchor;
-			resizeCues.push({
+			activeResizeCue = {
 				actionIndex: index,
 				from,
 				to: { width: action.width, height: action.height },
@@ -183,8 +186,10 @@ async function replayScenario(
 					: legacyMovingEdge === 'both'
 						? 'keep-window-centered'
 						: 'keep-left-edge-fixed'),
+				delayMs: RESIZE_LEAD_IN_MS,
 				durationMs: action.durationMs ?? 800,
-			});
+			};
+			resizeCues.push(activeResizeCue);
 		}
 		if (action.type === 'zoom') {
 			const scale = action.scale ?? (action.locator ? 1.8 : 1);
@@ -199,6 +204,9 @@ async function replayScenario(
 			zoomCues.push({ actionIndex: index, target, scale, durationMs: action.durationMs ?? 800 });
 		}
 		await performAction(page, baseUrl, action);
+		if (activeResizeCue) {
+			activeResizeCue.durationMs = Math.max(0, performance.now() - recordingStartedAt - startedAtMs - activeResizeCue.delayMs);
+		}
 		const holdAfterMs = 'holdAfterMs' in action ? action.holdAfterMs : undefined;
 		if (holdAfterMs) {
 			await page.waitForTimeout(holdAfterMs);
@@ -313,9 +321,10 @@ async function animateViewportResize(page: Page, width: number, height: number, 
 		await page.setViewportSize({ width, height });
 		return;
 	}
-	const steps = Math.max(1, Math.min(60, Math.ceil(durationMs / 50)));
+	await page.waitForTimeout(RESIZE_LEAD_IN_MS);
+	const steps = Math.max(1, Math.min(600, Math.ceil(durationMs / (1000 / 60))));
 	for (let step = 1; step <= steps; step += 1) {
-		const progress = step / steps;
+		const progress = 0.5 - 0.5 * Math.cos(Math.PI * step / steps);
 		await page.setViewportSize({
 			width: Math.round(start.width + (width - start.width) * progress),
 			height: Math.round(start.height + (height - start.height) * progress),

@@ -32,7 +32,7 @@ Before invoking the tool:
 6. Include short holds before the first action and after states a reviewer needs to inspect. Keep the full scenario concise.
 7. Choose an initial viewport that contains the relevant UI without making the subject too small. Start with 1280 by 720 for desktop or another size supported by the behavior being demonstrated.
 8. Set `focusLocator` when the demonstration concerns one stable region such as a menu bar, dialog, panel, or toolbar. The recorder follows that element's bounds and crops with 16 pixels of padding by default.
-9. Keep `layout` set to `auto` unless the user requests otherwise. Auto is side by side for normal captures and only stacks top and bottom when the focused region is at least three times wider than tall.
+9. Keep `layout` set to `auto` unless the user explicitly requests side-by-side output. Top and bottom is renderer-controlled and occurs only when the focused region is strictly greater than 3:1. An exact 3:1 region remains side by side. Never request vertical layout directly.
 10. Use short Before and After labels. They are rendered inside the outer top corners of the recordings.
 11. Do not include credentials, tokens, private account data, or destructive interactions in a recording.
 

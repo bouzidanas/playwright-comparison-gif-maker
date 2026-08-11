@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.17] - 2026-08-11
+
+- Synchronized resize lead-in, viewport movement, and hold phases separately so capture-time differences cannot shift either edge.
+- Normalized every paired action to an exact shared frame count before concatenation.
+- Enforced side-by-side layout for focused regions at or below 3:1, including legacy explicit vertical requests.
+- Added an adversarial Playwright check that compares both page boundaries on every frame for both one-sided resize modes.
+
 ## [0.0.16] - 2026-08-11
 
 - Synchronized Before and After resize placement with one shared transition duration, even when their measured action runtimes differ.

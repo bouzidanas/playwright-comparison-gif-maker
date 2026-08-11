@@ -89,6 +89,7 @@ export interface ResizeCue {
 	from: Viewport;
 	to: Viewport;
 	resizeMode: ResizeMode;
+	delayMs: number;
 	durationMs: number;
 }
 

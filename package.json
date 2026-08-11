@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -183,10 +183,9 @@
               "type": "string",
               "enum": [
                 "auto",
-                "horizontal",
-                "vertical"
+                "horizontal"
               ],
-              "description": "Comparison arrangement. Auto keeps side-by-side unless a focused region is at least three times wider than tall."
+              "description": "Comparison arrangement. Keep auto unless side-by-side must be forced. Top-and-bottom output is selected only when the focused region is strictly greater than 3:1, and cannot be forced for narrower content."
             },
             "viewport": {
               "type": "object",

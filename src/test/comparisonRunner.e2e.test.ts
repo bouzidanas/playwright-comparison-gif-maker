@@ -1,9 +1,10 @@
 import * as assert from 'node:assert';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
+import ffmpegPath from 'ffmpeg-static';
 import * as vscode from 'vscode';
 import { ComparisonRunner } from '../comparisonRunner';
 import type { ComparisonRequest } from '../model';
@@ -32,6 +33,7 @@ suite('Comparison runner end to end', function () {
 				beforeLabelAlignment: 'bottom-left',
 				afterLabelAlignment: 'bottom-right',
 				borderColor: '#2f81f7',
+				colorScheme: 'light',
 				frameRate: 30,
 				viewport: { width: 640, height: 480 },
 				scenario: {
@@ -40,6 +42,8 @@ suite('Comparison runner end to end', function () {
 						{ type: 'hold', durationMs: 300 },
 						{ type: 'resize', width: 360, height: 480, resizeMode: 'keep-right-edge-fixed', durationMs: 500, holdAfterMs: 300 },
 						{ type: 'resize', width: 640, height: 480, resizeMode: 'keep-right-edge-fixed', durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 360, height: 480, resizeMode: 'keep-left-edge-fixed', durationMs: 500, holdAfterMs: 300 },
+						{ type: 'resize', width: 640, height: 480, resizeMode: 'keep-left-edge-fixed', durationMs: 500, holdAfterMs: 300 },
 						{ type: 'zoom', locator: 'role=button[name="Toggle panel"]', scale: 1.8, durationMs: 500, holdAfterMs: 300 },
 						{ type: 'click', locator: 'role=button[name="Toggle panel"]', holdAfterMs: 700 },
 						{ type: 'zoom', scale: 1, durationMs: 500, holdAfterMs: 300 },
@@ -65,11 +69,24 @@ suite('Comparison runner end to end', function () {
 			assert.ok((await stat(result.gifPath)).size > 1_000);
 			assert.ok((await stat(result.beforeGifPath)).size > 1_000);
 			assert.ok((await stat(result.afterGifPath)).size > 1_000);
+			if (!ffmpegPath) {
+				assert.fail('No FFmpeg binary is available for end-to-end edge checks.');
+			}
+			const beforeBounds = await readGifPageBounds(ffmpegPath, result.beforeGifPath, 200);
+			const afterBounds = await readGifPageBounds(ffmpegPath, result.afterGifPath, 200);
+			assert.strictEqual(beforeBounds.length, afterBounds.length);
+			assert.ok(beforeBounds.length > 10);
+			for (const [frame, beforeBound] of beforeBounds.entries()) {
+				const afterBound = afterBounds[frame];
+				assert.ok(Math.abs(beforeBound.min - afterBound.min) <= 2, `Left edges differ at frame ${frame}: ${beforeBound.min} and ${afterBound.min}.`);
+				assert.ok(Math.abs(beforeBound.max - afterBound.max) <= 2, `Right edges differ at frame ${frame}: ${beforeBound.max} and ${afterBound.max}.`);
+				assert.ok(beforeBound.min <= 5 || beforeBound.max >= 480, `Page lost both anchors at frame ${frame}: ${beforeBound.min} to ${beforeBound.max}.`);
+			}
 			const session = JSON.parse(await readFile(path.join(result.sessionDirectory, 'session.json'), 'utf8')) as {
 				timings: { before: unknown[]; after: unknown[] };
 			};
-			assert.strictEqual(session.timings.before.length, 6);
-			assert.strictEqual(session.timings.after.length, 6);
+			assert.strictEqual(session.timings.before.length, 8);
+			assert.strictEqual(session.timings.after.length, 8);
 			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
 		} finally {
 			output.dispose();
@@ -148,16 +165,16 @@ http.createServer((_request, response) => {
   response.end(fs.readFileSync('index.html'));
 }).listen(port, '127.0.0.1');
 `, 'utf8');
-	await writeFile(path.join(repositoryPath, 'index.html'), fixtureHtml('260px', '#c84b31'), 'utf8');
+	await writeFile(path.join(repositoryPath, 'index.html'), fixtureHtml('260px', '#c84b31', false), 'utf8');
 	await execFileAsync('git', ['init'], { cwd: repositoryPath });
 	await execFileAsync('git', ['add', '.'], { cwd: repositoryPath });
 	await execFileAsync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-m', 'before'], {
 		cwd: repositoryPath,
 	});
-	await writeFile(path.join(repositoryPath, 'index.html'), fixtureHtml('420px', '#2e7d5b'), 'utf8');
+	await writeFile(path.join(repositoryPath, 'index.html'), fixtureHtml('420px', '#2e7d5b', true), 'utf8');
 }
 
-function fixtureHtml(panelWidth: string, panelColor: string): string {
+function fixtureHtml(panelWidth: string, panelColor: string, delayResize: boolean): string {
 	return `<!doctype html>
 <html>
 <head><style>
@@ -177,6 +194,62 @@ button { font: inherit; padding: 10px 16px; }
 <body>
 <div id="toolbar"><button aria-label="Toggle panel" onclick="document.getElementById('panel').classList.toggle('open')">Toggle panel</button><span>Project navigation</span></div>
 <div id="panel">Comparison fixture</div>
+${delayResize ? `<script>
+window.addEventListener('resize', () => {
+	const end = performance.now() + 8;
+	while (performance.now() < end) {}
+});
+</script>` : ''}
 </body>
 </html>`;
+}
+
+async function readGifPageBounds(
+	executablePath: string,
+	gifPath: string,
+	y: number,
+): Promise<Array<{ min: number; max: number }>> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		const child = spawn(executablePath, [
+			'-v', 'error',
+			'-ignore_loop', '1',
+			'-i', gifPath,
+			'-vf', `crop=iw:1:0:${y},format=rgb24`,
+			'-f', 'rawvideo',
+			'pipe:1',
+		], { windowsHide: true });
+		child.stdout.on('data', data => chunks.push(Buffer.from(data)));
+		child.once('error', reject);
+		child.once('exit', code => {
+			const bytes = Buffer.concat(chunks);
+			if (code !== 0 || bytes.length < 3) {
+				reject(new Error(`GIF boundary sampling exited with ${code}.`));
+				return;
+			}
+			const width = 486;
+			const frameBytes = width * 3;
+			const bounds: Array<{ min: number; max: number }> = [];
+			for (let frameOffset = 0; frameOffset + frameBytes <= bytes.length; frameOffset += frameBytes) {
+				const pagePixels: number[] = [];
+				for (let x = 3; x <= 482; x += 1) {
+					const offset = frameOffset + x * 3;
+					if (isPagePixel([bytes[offset], bytes[offset + 1], bytes[offset + 2]])) {
+						pagePixels.push(x);
+					}
+				}
+				if (pagePixels.length === 0) {
+					reject(new Error(`GIF frame ${bounds.length} did not contain page pixels.`));
+					return;
+				}
+				bounds.push({ min: pagePixels[0], max: pagePixels.at(-1)! });
+			}
+			resolve(bounds);
+		});
+	});
+}
+
+function isPagePixel([red, green, blue]: [number, number, number]): boolean {
+	const isBlueBorder = blue > 150 && blue > red * 1.4 && blue > green * 1.15;
+	return !isBlueBorder && red + green + blue > 120;
 }
