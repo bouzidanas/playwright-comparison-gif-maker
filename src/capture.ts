@@ -2,8 +2,13 @@ import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import * as vscode from 'vscode';
 import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
+import { resolveResizeMode } from './model';
 
 const RESIZE_LEAD_IN_MS = 100;
+const BEACON_VISIBLE_MS = 150;
+const BEACON_SETTLE_MS = 200;
+
+export const SYNC_BEACON_COLOR = '#ff00ff';
 
 export const INITIAL_POINTER_STYLE = {
 	left: '-32px',
@@ -19,6 +24,7 @@ export async function captureScenario(
 	colorScheme: BrowserColorScheme,
 	focusLocator: string | undefined,
 	focusPadding: number,
+	frameRate: number,
 	outputDirectory: string,
 	token: vscode.CancellationToken,
 ): Promise<CaptureResult> {
@@ -48,8 +54,9 @@ export async function captureScenario(
 			}
 			regionSamples.push(initialRegion);
 		}
+		const beaconAtMs = await flashSyncBeacon(page, captureStartedAt);
 		const replayOffsetMs = performance.now() - captureStartedAt;
-		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, resizeCues, zoomCues, token);
+		const timings = await replayScenario(page, baseUrl, scenario, focusLocator, focusPadding, regionSamples, resizeCues, zoomCues, frameRate, outputDirectory, token);
 		await context.close();
 		if (!video) {
 			throw new Error('Playwright did not create a video for the comparison.');
@@ -59,6 +66,7 @@ export async function captureScenario(
 			observedColorScheme,
 			timings,
 			replayOffsetMs,
+			beaconAtMs,
 			recordingSize,
 			resizeCues,
 			zoomCues,
@@ -93,7 +101,7 @@ export async function captureStaticScenario(
 		await installCursorOverlay(page);
 		const resizeCues: ResizeCue[] = [];
 		const zoomCues: ZoomCue[] = [];
-		await replayScenario(page, baseUrl, scenario, undefined, focusPadding, [], resizeCues, zoomCues, token);
+		await replayScenario(page, baseUrl, scenario, undefined, focusPadding, [], resizeCues, zoomCues, 0, outputDirectory, token);
 		let region: CaptureRegion | undefined;
 		if (focusLocator) {
 			await page.locator(focusLocator).waitFor({ state: 'visible' });
@@ -156,6 +164,8 @@ async function replayScenario(
 	regionSamples: CaptureRegion[],
 	resizeCues: ResizeCue[],
 	zoomCues: ZoomCue[],
+	frameRate: number,
+	outputDirectory: string,
 	token: vscode.CancellationToken,
 ): Promise<ActionTiming[]> {
 	const timings: ActionTiming[] = [];
@@ -165,31 +175,39 @@ async function replayScenario(
 			throw new vscode.CancellationError();
 		}
 		const startedAtMs = performance.now() - recordingStartedAt;
-		let activeResizeCue: ResizeCue | undefined;
+		let activeLiveResizeCue: ResizeCue | undefined;
+		let stopMotionResize = false;
 		if (action.type === 'resize') {
 			const from = page.viewportSize();
 			if (!from) {
 				throw new Error('The browser viewport is unavailable before resize.');
 			}
-			const resizeAction = action as {
-				resizeMode?: ResizeCue['resizeMode'];
-				movingEdge?: 'left' | 'right' | 'both';
-				anchor?: 'left' | 'right' | 'both';
-			};
-			const legacyMovingEdge = resizeAction.movingEdge ?? resizeAction.anchor;
-			activeResizeCue = {
-				actionIndex: index,
-				from,
-				to: { width: action.width, height: action.height },
-				resizeMode: resizeAction.resizeMode ?? (legacyMovingEdge === 'left'
-					? 'keep-right-edge-fixed'
-					: legacyMovingEdge === 'both'
-						? 'keep-window-centered'
-						: 'keep-left-edge-fixed'),
-				delayMs: RESIZE_LEAD_IN_MS,
-				durationMs: action.durationMs ?? 800,
-			};
-			resizeCues.push(activeResizeCue);
+			const durationMs = action.durationMs ?? 800;
+			stopMotionResize = frameRate > 0 && durationMs > 0 && (action.captureStrategy ?? 'stop-motion') === 'stop-motion';
+			if (stopMotionResize) {
+				resizeCues.push(await captureStopMotionResize(
+					page,
+					index,
+					from,
+					{ width: action.width, height: action.height },
+					resolveResizeMode(action),
+					durationMs,
+					frameRate,
+					outputDirectory,
+					recordingStartedAt,
+					token,
+				));
+			} else {
+				activeLiveResizeCue = {
+					actionIndex: index,
+					from,
+					to: { width: action.width, height: action.height },
+					resizeMode: resolveResizeMode(action),
+					delayMs: RESIZE_LEAD_IN_MS,
+					durationMs,
+				};
+				resizeCues.push(activeLiveResizeCue);
+			}
 		}
 		if (action.type === 'zoom') {
 			const scale = action.scale ?? (action.locator ? 1.8 : 1);
@@ -203,9 +221,11 @@ async function replayScenario(
 			}
 			zoomCues.push({ actionIndex: index, target, scale, durationMs: action.durationMs ?? 800 });
 		}
-		await performAction(page, baseUrl, action);
-		if (activeResizeCue) {
-			activeResizeCue.durationMs = Math.max(0, performance.now() - recordingStartedAt - startedAtMs - activeResizeCue.delayMs);
+		if (!stopMotionResize) {
+			await performAction(page, baseUrl, action);
+		}
+		if (activeLiveResizeCue) {
+			activeLiveResizeCue.durationMs = Math.max(0, performance.now() - recordingStartedAt - startedAtMs - activeLiveResizeCue.delayMs);
 		}
 		const holdAfterMs = 'holdAfterMs' in action ? action.holdAfterMs : undefined;
 		if (holdAfterMs) {
@@ -331,6 +351,72 @@ async function animateViewportResize(page: Page, width: number, height: number, 
 		});
 		await page.waitForTimeout(durationMs / steps);
 	}
+}
+
+async function captureStopMotionResize(
+	page: Page,
+	actionIndex: number,
+	from: Viewport,
+	to: Viewport,
+	resizeMode: ResizeCue['resizeMode'],
+	durationMs: number,
+	frameRate: number,
+	outputDirectory: string,
+	recordingStartedAt: number,
+	token: vscode.CancellationToken,
+): Promise<ResizeCue> {
+	const frameTotal = Math.max(2, Math.round(durationMs * frameRate / 1000));
+	const framePaths: string[] = [];
+	const frameSizes: Viewport[] = [];
+	for (let frame = 0; frame < frameTotal; frame += 1) {
+		if (token.isCancellationRequested) {
+			throw new vscode.CancellationError();
+		}
+		const progress = 0.5 - 0.5 * Math.cos(Math.PI * frame / (frameTotal - 1));
+		const size = {
+			width: Math.round(from.width + (to.width - from.width) * progress),
+			height: Math.round(from.height + (to.height - from.height) * progress),
+		};
+		await page.setViewportSize(size);
+		await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+		const framePath = path.join(outputDirectory, `resize-${actionIndex}-frame-${String(frame).padStart(4, '0')}.png`);
+		await page.screenshot({ path: framePath, animations: 'allow' });
+		framePaths.push(framePath);
+		frameSizes.push(size);
+	}
+	return {
+		actionIndex,
+		from,
+		to,
+		resizeMode,
+		delayMs: 0,
+		durationMs: frameTotal * 1000 / frameRate,
+		stopMotion: {
+			framePaths,
+			frameSizes,
+			transitionEndMs: performance.now() - recordingStartedAt,
+		},
+	};
+}
+
+async function flashSyncBeacon(page: Page, captureStartedAt: number): Promise<number> {
+	await page.evaluate(color => {
+		const beacon = document.createElement('div');
+		beacon.dataset.prUiCompareBeacon = '';
+		Object.assign(beacon.style, {
+			background: color,
+			inset: '0',
+			pointerEvents: 'none',
+			position: 'fixed',
+			zIndex: '2147483647',
+		});
+		document.documentElement.appendChild(beacon);
+	}, SYNC_BEACON_COLOR);
+	const beaconAtMs = performance.now() - captureStartedAt;
+	await page.waitForTimeout(BEACON_VISIBLE_MS);
+	await page.evaluate(() => document.querySelector('[data-pr-ui-compare-beacon]')?.remove());
+	await page.waitForTimeout(BEACON_SETTLE_MS);
+	return beaconAtMs;
 }
 
 export function getRecordingSize(viewport: Viewport, scenario: ComparisonScenario): Viewport {

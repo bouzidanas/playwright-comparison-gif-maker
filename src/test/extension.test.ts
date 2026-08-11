@@ -1,6 +1,6 @@
 import * as assert from 'assert';
 import { getRecordingSize, INITIAL_POINTER_STYLE, resolvePlaywrightColorScheme } from '../capture';
-import { expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
+import { describeResizeOutcomes, expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
 
 suite('Comparison model', () => {
@@ -124,6 +124,55 @@ suite('Comparison model', () => {
 				actions: [{ type: 'resize', width: 640, height: 480, movingEdge: 'left' }],
 			},
 		}));
+	});
+
+	test('validates the resize capture strategy', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({
+			...validRequest,
+			scenario: {
+				name: 'Live resize',
+				actions: [{ type: 'resize', width: 640, height: 480, resizeMode: 'keep-right-edge-fixed', captureStrategy: 'live' }],
+			},
+		}));
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Invalid strategy',
+					actions: [{ type: 'resize', width: 640, height: 480, resizeMode: 'keep-right-edge-fixed', captureStrategy: 'timelapse' as never }],
+				},
+			}),
+			/unsupported captureStrategy/,
+		);
+	});
+
+	test('validates the explicit label size', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({ ...validRequest, labelSize: 28 }));
+		assert.throws(
+			() => validateComparisonRequest({ ...validRequest, labelSize: 8 }),
+			/between 10 and 72/,
+		);
+	});
+
+	test('describes each resize outcome in fixed-edge language', () => {
+		const request: ComparisonRequest = {
+			...validRequest,
+			viewport: { width: 1280, height: 720 },
+			scenario: {
+				name: 'Responsive behavior',
+				actions: [
+					{ type: 'hold', durationMs: 300 },
+					{ type: 'resize', width: 390, height: 720, resizeMode: 'keep-right-edge-fixed' },
+					{ type: 'resize', width: 1280, height: 640, resizeMode: 'keep-left-edge-fixed' },
+					{ type: 'resize', width: 640, height: 640, resizeMode: 'keep-window-centered' },
+				],
+			},
+		};
+		assert.deepStrictEqual(describeResizeOutcomes(request), [
+			'Action 2 (resize, 1280 to 390 wide): the right edge stays fixed while the left edge slides right.',
+			'Action 3 (resize, 390 to 1280 wide): the left edge stays fixed while the right edge slides right; height shrinks from 720 to 640.',
+			'Action 4 (resize, 1280 to 640 wide): both edges move inward at the same rate and the window stays centered.',
+		]);
 	});
 
 	test('rejects invalid visual customization values', () => {

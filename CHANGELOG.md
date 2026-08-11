@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.18] - 2026-08-11
+
+- Captured resize transitions in stop-motion by default: every output frame is taken at an exact viewport size, so fixed edges stay perfectly rigid and both panes resize in exact lockstep. Live recording remains available per resize with `captureStrategy: "live"`.
+- Aligned both recordings to a shared time origin with a pre-scenario sync beacon, removing the constant offset between video start and scenario timestamps.
+- Scaled label size with the output dimensions so labels look consistent when artifacts are displayed at the same width, and added an explicit `labelSize` option for user-requested sizes.
+- Reported each resize as a plain-language `resizeOutcomes` sentence in the tool result and the pre-run confirmation so agents can verify the fixed edge before and after running.
+- Masked stale content below the viewport during height-only shrinks with `keep-left-edge-fixed`.
+
 ## [0.0.17] - 2026-08-11
 
 - Synchronized resize lead-in, viewport movement, and hold phases separately so capture-time differences cannot shift either edge.

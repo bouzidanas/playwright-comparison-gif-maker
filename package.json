@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -164,6 +164,12 @@
               ],
               "description": "Corner for the After label. Defaults to top-right."
             },
+            "labelSize": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 72,
+              "description": "Label font size in pixels. Omit this unless the user explicitly requests a specific label size. The default scales automatically so labels stay consistent and readable across output sizes."
+            },
             "borderColor": {
               "type": "string",
               "pattern": "^#[0-9a-fA-F]{6}$",
@@ -272,6 +278,14 @@
                           "keep-window-centered"
                         ],
                         "description": "Required for resize. Choose the outcome directly. keep-left-edge-fixed means only the right edge moves. keep-right-edge-fixed means only the left edge moves. keep-window-centered means both edges move simultaneously at the same rate and the window remains horizontally centered. For a shrink where the left edge must slide right and the right edge must not move, use keep-right-edge-fixed."
+                      },
+                      "captureStrategy": {
+                        "type": "string",
+                        "enum": [
+                          "stop-motion",
+                          "live"
+                        ],
+                        "description": "How the resize transition is captured. stop-motion is the default: each output frame is captured at an exact viewport size, so fixed edges stay perfectly rigid and Before and After resize in exact lockstep. Use live to record the browser resizing in real time only when the user wants the true live resize behavior or reports that the stop-motion result differs from what they observe."
                       },
                       "scale": {
                         "type": "number",

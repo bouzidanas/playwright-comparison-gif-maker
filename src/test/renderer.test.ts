@@ -5,7 +5,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import ffmpegPath from 'ffmpeg-static';
 import * as vscode from 'vscode';
-import { DEFAULT_ANIMATION_FRAME_RATE, renderComparisonGif, resolveSynchronizedDurations } from '../renderer';
+import type { Viewport } from '../model';
+import { DEFAULT_ANIMATION_FRAME_RATE, renderComparisonGif, resolveLabelFontSize, resolveSynchronizedDurations } from '../renderer';
 
 suite('Comparison renderer', function () {
 	this.timeout(30_000);
@@ -68,6 +69,7 @@ suite('Comparison renderer', function () {
 				'#2f81f7',
 				'bottom-left',
 				'bottom-right',
+				undefined,
 				30,
 				'vertical',
 				new vscode.CancellationTokenSource().token,
@@ -105,6 +107,92 @@ suite('Comparison renderer', function () {
 
 	test('renders camera motion at a smooth frame cadence', () => {
 		assert.strictEqual(DEFAULT_ANIMATION_FRAME_RATE, 24);
+	});
+
+	test('scales label size with the comparison width and clamps it to readable bounds', () => {
+		assert.strictEqual(resolveLabelFontSize('horizontal', { width: 640, height: 360 }, { width: 640, height: 360 }), 22);
+		assert.strictEqual(resolveLabelFontSize('vertical', { width: 960, height: 240 }, { width: 960, height: 240 }), 17);
+		assert.strictEqual(resolveLabelFontSize('horizontal', { width: 180, height: 360 }, { width: 180, height: 360 }), 16);
+		assert.strictEqual(resolveLabelFontSize('horizontal', { width: 1920, height: 360 }, { width: 1920, height: 360 }), 48);
+	});
+
+	test('keeps stop-motion resize edges rigid and both panes in exact lockstep', async () => {
+		if (!ffmpegPath) {
+			assert.fail('No FFmpeg binary is available for renderer tests.');
+		}
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-stop-motion-'));
+		try {
+			const before = path.join(directory, 'before.mp4');
+			const after = path.join(directory, 'after.mp4');
+			await createVideo(ffmpegPath, before, '0xc84b31', 4);
+			await createVideo(ffmpegPath, after, '0x2e7d5b', 4);
+			const frameTotal = 8;
+			const createFrames = async (name: string, color: string) => {
+				const framePaths: string[] = [];
+				const frameSizes: Viewport[] = [];
+				for (let frame = 0; frame < frameTotal; frame += 1) {
+					const progress = 0.5 - 0.5 * Math.cos(Math.PI * frame / (frameTotal - 1));
+					const size = { width: Math.round(640 + (360 - 640) * progress), height: 480 };
+					const framePath = path.join(directory, `${name}-${frame}.png`);
+					await createImage(ffmpegPath!, framePath, color, size);
+					framePaths.push(framePath);
+					frameSizes.push(size);
+				}
+				return { framePaths, frameSizes };
+			};
+			const beforeFrames = await createFrames('before-frame', '0xc84b31');
+			const afterFrames = await createFrames('after-frame', '0x2e7d5b');
+			const stopMotionCue = (frames: { framePaths: string[]; frameSizes: Viewport[] }, transitionEndMs: number) => [{
+				actionIndex: 0,
+				from: { width: 640, height: 480 },
+				to: { width: 360, height: 480 },
+				resizeMode: 'keep-right-edge-fixed' as const,
+				delayMs: 0,
+				durationMs: frameTotal * 1000 / 24,
+				stopMotion: { ...frames, transitionEndMs },
+			}];
+			const rendered = await renderComparisonGif(
+				before,
+				after,
+				directory,
+				'Before',
+				'After',
+				{ width: 640, height: 480 },
+				undefined,
+				undefined,
+				[{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 2_800 }],
+				[{ index: 0, type: 'resize' as const, startedAtMs: 0, endedAtMs: 3_400 }],
+				0,
+				0,
+				{ width: 640, height: 480 },
+				{ width: 640, height: 480 },
+				stopMotionCue(beforeFrames, 2_500),
+				stopMotionCue(afterFrames, 3_000),
+				[],
+				[],
+				'#30363d',
+				'top-left',
+				'top-right',
+				undefined,
+				24,
+				'horizontal',
+				new vscode.CancellationTokenSource().token,
+				() => undefined,
+			);
+			for (let frame = 0; frame < frameTotal; frame += 1) {
+				const beforeBounds = await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, frame, 200);
+				const afterBounds = await readGifFrameContentBounds(ffmpegPath, rendered.afterGifPath, frame, 200, isAfterContent);
+				assert.ok(beforeBounds.max >= 478, `fixed right edge slipped to ${beforeBounds.max} at frame ${frame}`);
+				assert.ok(afterBounds.max >= 478, `fixed right edge slipped to ${afterBounds.max} at frame ${frame}`);
+				assert.ok(Math.abs(beforeBounds.min - afterBounds.min) <= 1, `panes fell out of lockstep at frame ${frame}: ${beforeBounds.min} and ${afterBounds.min}`);
+			}
+			// Hold frames come from the recorded video and must keep the final stop-motion placement.
+			const holdBounds = await readGifFrameContentBounds(ffmpegPath, rendered.beforeGifPath, frameTotal + 2, 200);
+			assert.ok(holdBounds.max >= 478, `hold lost the fixed right edge: ${holdBounds.max}`);
+			assert.ok(Math.abs(holdBounds.min - (3 + 280 * 0.75)) <= 2, `hold moved the left edge to ${holdBounds.min}`);
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 
 	test('keeps the selected edge fixed or keeps the window centered throughout resize', async () => {
@@ -153,6 +241,7 @@ suite('Comparison renderer', function () {
 					'#30363d',
 					'top-left',
 					'top-right',
+					undefined,
 					24,
 					'horizontal',
 					new vscode.CancellationTokenSource().token,
@@ -181,7 +270,7 @@ suite('Comparison renderer', function () {
 					assert.ok(isBackground(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
 					assert.ok(isContent(rightPixel), `${resizeMode} right pixel ${rightPixel}`);
 					const labelBounds = await readGifFrameWhiteBounds(ffmpegPath, rendered.beforeGifPath, 0, 8, 8, 150, 60);
-					assert.ok(labelBounds.height >= 17, `label glyph height ${labelBounds.height} is below the readable floor`);
+					assert.ok(labelBounds.height >= 12, `label glyph height ${labelBounds.height} is below the readable floor`);
 				} else if (resizeMode === 'keep-left-edge-fixed') {
 					assert.ok(middleBounds.min <= 5, `right motion moved the fixed left edge to ${middleBounds.min}`);
 					assert.ok(isContent(leftPixel), `${resizeMode} left pixel ${leftPixel}`);
@@ -201,17 +290,31 @@ suite('Comparison renderer', function () {
 	});
 });
 
-async function createVideo(executablePath: string, outputPath: string, color: string): Promise<void> {
+async function createVideo(executablePath: string, outputPath: string, color: string, durationSeconds = 1): Promise<void> {
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(executablePath, [
 			'-y',
 			'-f', 'lavfi',
-			'-i', `color=c=${color}:s=640x480:d=1`,
+			'-i', `color=c=${color}:s=640x480:d=${durationSeconds}`,
 			'-pix_fmt', 'yuv420p',
 			outputPath,
 		], { windowsHide: true });
 		child.once('error', reject);
 		child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Fixture FFmpeg exited with ${code}.`)));
+	});
+}
+
+async function createImage(executablePath: string, outputPath: string, color: string, size: { width: number; height: number }): Promise<void> {
+	await new Promise<void>((resolve, reject) => {
+		const child = spawn(executablePath, [
+			'-y',
+			'-f', 'lavfi',
+			'-i', `color=c=${color}:s=${size.width}x${size.height}:d=1`,
+			'-frames:v', '1',
+			outputPath,
+		], { windowsHide: true });
+		child.once('error', reject);
+		child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Fixture image FFmpeg exited with ${code}.`)));
 	});
 }
 

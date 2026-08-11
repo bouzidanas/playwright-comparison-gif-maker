@@ -12,7 +12,7 @@ import {
 	type StaticCaptureResult,
 } from './model';
 import { findOpenPort, ManagedServer, runShellCommand, waitForUrl } from './processes';
-import { renderComparisonGif, renderComparisonImages, resolveComparisonLayout } from './renderer';
+import { detectSyncBeacon, renderComparisonGif, renderComparisonImages, resolveComparisonLayout } from './renderer';
 
 export class ComparisonRunner {
 	constructor(
@@ -78,6 +78,7 @@ export class ComparisonRunner {
 					request.borderColor ?? '#30363d',
 					request.beforeLabelAlignment ?? 'top-left',
 					request.afterLabelAlignment ?? 'top-right',
+					request.labelSize,
 					layout,
 					token,
 					text => this.output.append(text),
@@ -112,6 +113,9 @@ export class ComparisonRunner {
 			onProgress('Recording After');
 			const after = await this.captureVersion(repository.root, request, 'after', sessionDirectory, token);
 			const layout = resolveComparisonLayout(viewport, before.region, after.region, request.layout ?? 'auto');
+			onProgress('Aligning recordings');
+			const beforeReplayOffsetMs = await this.resolveVideoAlignedOffset(before, 'Before', token);
+			const afterReplayOffsetMs = await this.resolveVideoAlignedOffset(after, 'After', token);
 			onProgress('Rendering comparison GIF');
 			const rendered = await renderComparisonGif(
 				before.videoPath,
@@ -124,8 +128,8 @@ export class ComparisonRunner {
 				after.region,
 				before.timings,
 				after.timings,
-				before.replayOffsetMs,
-				after.replayOffsetMs,
+				beforeReplayOffsetMs,
+				afterReplayOffsetMs,
 				before.recordingSize,
 				after.recordingSize,
 				before.resizeCues,
@@ -135,6 +139,7 @@ export class ComparisonRunner {
 				request.borderColor ?? '#30363d',
 				request.beforeLabelAlignment ?? 'top-left',
 				request.afterLabelAlignment ?? 'top-right',
+				request.labelSize,
 				request.frameRate ?? 24,
 				layout,
 				token,
@@ -176,6 +181,27 @@ export class ComparisonRunner {
 				onProgress('Cleaning up temporary worktree');
 				await repository.removeWorktree(worktreePath);
 			}
+		}
+	}
+
+	private async resolveVideoAlignedOffset(
+		capture: CaptureResult,
+		side: string,
+		token: vscode.CancellationToken,
+	): Promise<number> {
+		try {
+			const beaconVideoMs = await detectSyncBeacon(capture.videoPath, capture.beaconAtMs, token);
+			if (beaconVideoMs === undefined) {
+				this.output.appendLine(`${side} sync beacon was not found; using the unaligned capture offset.`);
+				return capture.replayOffsetMs;
+			}
+			return capture.replayOffsetMs + (beaconVideoMs - capture.beaconAtMs);
+		} catch (error) {
+			if (error instanceof vscode.CancellationError) {
+				throw error;
+			}
+			this.output.appendLine(`${side} sync beacon detection failed: ${error instanceof Error ? error.message : String(error)}`);
+			return capture.replayOffsetMs;
 		}
 	}
 
@@ -235,6 +261,7 @@ export class ComparisonRunner {
 					: request.afterColorScheme ?? request.colorScheme ?? 'system',
 				request.focusLocator,
 				request.focusPadding ?? 16,
+				request.frameRate ?? 24,
 				captureDirectory(sessionDirectory, side),
 				token,
 			);
