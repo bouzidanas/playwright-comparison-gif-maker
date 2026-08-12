@@ -118,7 +118,7 @@
             },
             "baseRef": {
               "type": "string",
-              "description": "Git branch, tag, or commit for the Before application, normally upstream/main or the PR target branch."
+              "description": "Git branch, tag, or commit for the Before application, normally upstream/main or the PR target branch. The After application is always the current working tree, so this is the only side that can be pointed at a ref."
             },
             "startCommand": {
               "type": "string",

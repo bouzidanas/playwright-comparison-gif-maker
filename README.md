@@ -1,6 +1,8 @@
 # PR UI Compare
 
-PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison covers any settled state, including a state reached through setup interactions. Both evaluate the same source against a baseline Git revision and the current working tree.
+PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison covers any settled state, including a state reached through setup interactions.
+
+The Before side is any Git ref you name, such as a branch, a tag, or a commit SHA. The After side is always your working tree as it is right now, including uncommitted edits. So you can compare against any commit or branch, and you can compare two of them by checking one out first and pointing the baseline at the other. What you cannot do yet is name both sides in the same request and leave your working tree alone.
 
 The tool is for generating visual evidence. Ask for it when you want a GIF or image to look at or attach to a pull request. Asking an agent to compare a branch against `main`, review a fix, or explain what changed is a code question, and the agent should answer that by reading the code rather than by recording the application.
 
@@ -132,7 +134,7 @@ Raw captures, timing metadata, and rendered GIF or PNG files are written under V
 
 ## Current limitations
 
-- The extension currently compares one baseline Git ref with the current workspace.
+- The After side is always the current working tree. To compare two commits or two branches, check one of them out and name the other as the baseline. Naming both sides in one request is not supported yet.
 - Firefox and WebKit are not supported yet.
 - Playback is synchronized by action segment. Sequential playback is not exposed yet.
 - GitHub attachment upload remains manual. Save the GIF and drag it into the PR editor.
