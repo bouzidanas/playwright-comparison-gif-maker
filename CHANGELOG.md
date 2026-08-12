@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-08-12
+
+- Swapped the README demo GIF for a toolbar breakpoint recording and added a static PNG comparison example to the image mode explanation.
+
 ## [0.1.4] - 2026-08-12
 
 - Cut the feature list down to short fragments, moved Requirements directly after Features, and added a numbered Setup section covering the Install Managed Chromium and Install FFmpeg commands.

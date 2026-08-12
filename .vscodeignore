@@ -6,6 +6,7 @@ src/**
 scripts/**
 *.vsix
 assets/demo-comparison.gif
+assets/demo-image-comparison.png
 .gitignore
 .yarnrc
 esbuild.js

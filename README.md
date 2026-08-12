@@ -65,6 +65,8 @@ The agent picks the tool up from the request. It does not need the extension nam
 
 The agent sets `outputMode` to `image` for an explicit static request or when the subject is a settled state that holds still. Image mode accepts scenario actions, and they run as setup rather than as the subject. Both versions replay the same actions, then a single PNG captures the settled final state, so a panel that only appears after loading a document or opening an editor can still be compared as a still image. Use animation when the change the user needs to see is the motion itself, such as a transition, loading sequence, resize, zoom, or scroll. When the request is ambiguous, animation is always the default. The synthetic pointer is not drawn in static images.
 
+![A static PNG comparison of a focused UI region in both versions](assets/demo-image-comparison.png)
+
 Animated GIF frame rate is configurable from 5 to 30 fps and defaults to 24. Use 30 fps for fast visual events, short transitions, or detailed camera movement. Lower rates reduce file size for slow and simple motion. Static image mode does not accept frame rate.
 
 Use `colorScheme` to load both browser contexts in `light`, `dark`, or `system` mode. It emulates `prefers-color-scheme` before navigation so pages initialize in the requested appearance. For a direct light-versus-dark image, set `beforeColorScheme` and `afterColorScheme` independently:
