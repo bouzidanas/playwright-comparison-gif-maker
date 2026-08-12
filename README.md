@@ -1,6 +1,6 @@
 # PR UI Compare
 
-PR UI Compare generates the visual evidence for a UI change. Ask your agent for a comparison, and the extension runs your working tree next to any Git ref, replays the same interactions in both versions, and renders a labeled side-by-side GIF or PNG you can drag straight into the pull request description.
+PR UI Compare generates the visual evidence of changes made by creating a comparison gif. Ask your agent for a comparison, and the extension starts your app or web page from the working tree and again from any Git ref you tell it to compare to, drives both in a headless browser with Playwright while recording them, replays the same interactions in both versions, and renders a labeled side-by-side GIF or PNG you can drag straight into the pull request description.
 
 Doing this by hand is the motivating pain. Showing a fix means checking out the old code, starting the app, recording, switching back, and recording again, and the two clips still never line up. Here the whole capture is one request, both recordings play in lockstep, and nothing in your repository is created or modified.
 
