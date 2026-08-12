@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { ComparisonRequest, ComparisonResult } from './model';
+import { describeResizeOutcomes, type ComparisonRequest, type ComparisonResult } from './model';
 
 export class CreateComparisonTool implements vscode.LanguageModelTool<ComparisonRequest> {
 	constructor(
@@ -10,6 +10,13 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 		const message = new vscode.MarkdownString();
 		message.appendMarkdown(`Create **${options.input.scenario.name}** by running the following project command against `);
 		message.appendCodeblock(`${options.input.baseRef}\n${options.input.startCommand}`, 'text');
+		const resizeOutcomes = describeResizeOutcomes(options.input);
+		if (resizeOutcomes.length > 0) {
+			message.appendMarkdown('\n\nPlanned resize motion:\n');
+			for (const outcome of resizeOutcomes) {
+				message.appendMarkdown(`\n- ${outcome}`);
+			}
+		}
 		return {
 			invocationMessage: `Creating PR UI comparison for ${options.input.scenario.name}`,
 			confirmationMessages: {
@@ -24,6 +31,7 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 		token: vscode.CancellationToken,
 	): Promise<vscode.LanguageModelToolResult> {
 		const result = await this.execute(options.input, token);
+		const resizeOutcomes = describeResizeOutcomes(options.input);
 		const summary = {
 			outputMode: result.outputMode,
 			...(result.outputMode === 'animation' ? { frameRate: result.frameRate } : {}),
@@ -41,10 +49,14 @@ export class CreateComparisonTool implements vscode.LanguageModelTool<Comparison
 			beforeLabel: result.beforeLabel,
 			afterLabel: result.afterLabel,
 			layout: result.layout,
+			...(resizeOutcomes.length > 0 ? { resizeOutcomes } : {}),
 		};
+		const verification = resizeOutcomes.length > 0
+			? '\n\nVerify that each resizeOutcomes entry matches the edge motion the user requested. If any fixed edge is wrong, correct resizeMode and rerun.'
+			: '';
 		return new vscode.LanguageModelToolResult([
 			new vscode.LanguageModelTextPart(
-				`The PR UI comparison was created successfully.\n\n${JSON.stringify(summary, null, 2)}`,
+				`The PR UI comparison was created successfully.\n\n${JSON.stringify(summary, null, 2)}${verification}`,
 			),
 		]);
 	}

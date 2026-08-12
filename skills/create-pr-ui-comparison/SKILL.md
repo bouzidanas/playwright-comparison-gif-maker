@@ -1,6 +1,6 @@
 ---
 name: create-pr-ui-comparison
-description: "Create synchronized GIF Before and After UI comparisons by default, with static PNG as a narrow exception for explicit, completely motionless cases. Use when: the user asks for a PR visual comparison, comparison against a Git ref, screenshot comparison, or recorded UI fix demonstration."
+description: "Produce Before and After GIF or PNG files from the running application. Use when the user asks for a visual artifact to look at, such as a GIF, screenshot, Before and After image, theme or visual-state comparison, or a recorded demonstration of a UI fix. Do not use for code comparisons, diff reviews, or change summaries that need no generated media."
 argument-hint: Describe the UI behavior to demonstrate
 ---
 
@@ -8,9 +8,13 @@ argument-hint: Describe the UI behavior to demonstrate
 
 Use the `pr-ui-compare_createComparison` tool to produce a reviewable artifact outside the repository.
 
-Animation is the default. Use `outputMode: image` only when the user explicitly asks for static images or the comparison is truly motionless. Truly static means nothing happens during the demonstration: no events, clicks, hovers, key presses, transitions, loading sequence, resizing, zooming, scrolling, opening, closing, or state changes. Image mode requires an empty action list and captures only the settled initial route. When there is any doubt, use `animation`.
+This tool exists to generate media. Run it only when the user wants a GIF or image to look at or share. A request to compare a branch against `main`, review a fix, explain what changed, or check that something works is a code question, and it should be answered by reading the code and the diff. The tool starts two copies of the application and records them, which is slow and pointless when nobody asked for a picture. If it is unclear whether the user wants generated media, ask first.
 
-Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or initial layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files and is required for every scenario action.
+Animation is the default. Use `outputMode: image` when the user explicitly asks for static images, or when the thing being compared is a settled state that holds still once it is reached. Use `animation` when the change the user needs to see is the motion itself, such as a transition, a loading sequence, a resize, a scroll, or anything that only makes sense while it is happening. When there is any doubt, use `animation`.
+
+Image mode is not limited to the initial route. Its actions are setup steps rather than the subject, so list whatever clicks, hovers, key presses, navigation, or waits are needed to bring the app into the state you want to photograph. The actions replay identically in both versions, then a single PNG captures the settled final state, so an element that only exists after loading a document or opening an editor can still be compared as a still image. Finish with a `waitFor` on the element you care about, and add a short `hold` when the state needs a moment to settle. The synthetic pointer is not drawn in static images.
+
+Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files.
 
 For animation, set `frameRate` from 5 to 30 fps. The default is 24 fps. Use 30 fps when the evidence contains fast visual events, short transitions, quick orientation changes, or camera zoom where intermediate frames matter. Use 15 fps or lower only for slow, simple motion when reducing file size matters more than temporal detail. Do not set frame rate for image mode.
 
@@ -46,14 +50,16 @@ Translate common requests literally:
 - "Slide the right edge left and keep the left edge fixed" means `resizeMode: keep-left-edge-fixed`.
 - "Resize from both sides at the same rate" means `resizeMode: keep-window-centered`.
 
-Never omit `resizeMode`. Before invoking the tool, verify that the fixed edge named by the selected mode is the fixed edge requested by the user.
+Never omit `resizeMode`. Before invoking the tool, verify that the fixed edge named by the selected mode is the fixed edge requested by the user. After the tool returns, compare every `resizeOutcomes` entry in the result against the user's request; if a fixed edge is wrong, correct `resizeMode` and rerun before reporting success.
+
+Resize transitions are captured in stop-motion by default: every output frame is rendered at an exact viewport size, so fixed edges stay perfectly rigid and the Before and After panes resize in exact lockstep. Set `captureStrategy: "live"` on a resize action only when the user asks for the real-time resize behavior or reports that the stop-motion transition differs from what they observe in a real browser, for example when resize-driven animations or debounced handlers matter.
 
 For a breakpoint-specific change, start on one side of the relevant breakpoint and cross it during the recording instead of showing only a fixed target state. The initial `viewport` and every resize target use the same 320 by 240 minimum and 3840 by 2160 maximum.
 
 Use `zoom` sparingly to orient viewers before a detailed interaction or to draw attention to the affected region. A zoom action with a locator smoothly moves the recording camera toward that element and remains zoomed for following actions. The default scale is 1.8 and the default transition is 800 milliseconds. Use `{ "type": "zoom", "scale": 1 }` to smoothly return to the full frame. Prefer scales from 1.4 to 2.2, allow time for viewers to orient before interacting, and avoid rapid or repeated zooms that feel jarring. Zoom is a camera effect only; it must not replace the clicks, resizing, scrolling, or other behavior that demonstrates the change.
 
-Use `borderColor` when the user requests a frame or accent color. It must be a six-digit hex color. The default is GitHub dark border `#30363d`, which is also used for unused canvas revealed by resize movement. Set `beforeLabelAlignment` and `afterLabelAlignment` independently to any corner. Defaults place the Before label at `top-left` and the After label at `top-right`, keeping labels on the outer corners for both side-by-side and top-and-bottom layouts.
+Use `borderColor` when the user requests a frame or accent color. It must be a six-digit hex color. The default is GitHub dark border `#30363d`, which is also used for unused canvas revealed by resize movement. Set `beforeLabelAlignment` and `afterLabelAlignment` independently to any corner. Defaults place the Before label at `top-left` and the After label at `top-right`, keeping labels on the outer corners for both side-by-side and top-and-bottom layouts. Never set `labelSize` unless the user explicitly requests a specific label size; the default scales automatically with the output so labels stay consistent and readable.
 
-The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action requires `width`, `height`, and `resizeMode`, and accepts an optional `durationMs`. A zoom action accepts an optional `locator`, `scale`, and `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
+The supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Pointer actions accept a Playwright locator string. A resize action requires `width`, `height`, and `resizeMode`, and accepts an optional `durationMs` and `captureStrategy`. A zoom action accepts an optional `locator`, `scale`, and `durationMs`. Add `holdAfterMs` when the resulting state should remain visible.
 
 After the tool returns, report the GIF path, whether the candidate included uncommitted changes, and the exact baseline and candidate SHAs. Remind the user to regenerate after committing and pushing when the candidate was dirty.

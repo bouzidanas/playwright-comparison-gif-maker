@@ -15,6 +15,7 @@ export type ResolvedComparisonLayout = Exclude<ComparisonLayout, 'auto'>;
 export type ComparisonOutputMode = 'animation' | 'image';
 export type BrowserColorScheme = 'light' | 'dark' | 'system';
 export type ResizeMode = 'keep-left-edge-fixed' | 'keep-right-edge-fixed' | 'keep-window-centered';
+export type ResizeCaptureStrategy = 'stop-motion' | 'live';
 type LegacyResizeMovingEdge = 'left' | 'right' | 'both';
 export type LabelAlignment = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
@@ -24,11 +25,60 @@ type ResizeAction = {
 	height: number;
 	durationMs?: number;
 	holdAfterMs?: number;
+	captureStrategy?: ResizeCaptureStrategy;
 } & (
 	{ resizeMode: ResizeMode; movingEdge?: never; anchor?: never }
 	| { resizeMode?: never; movingEdge: LegacyResizeMovingEdge; anchor?: never }
 	| { resizeMode?: never; movingEdge?: never; anchor: LegacyResizeMovingEdge }
 );
+
+export function resolveResizeMode(action: ScenarioAction & { type: 'resize' }): ResizeMode {
+	const resizeAction = action as {
+		resizeMode?: ResizeMode;
+		movingEdge?: LegacyResizeMovingEdge;
+		anchor?: LegacyResizeMovingEdge;
+	};
+	if (resizeAction.resizeMode) {
+		return resizeAction.resizeMode;
+	}
+	const legacyMovingEdge = resizeAction.movingEdge ?? resizeAction.anchor;
+	return legacyMovingEdge === 'left'
+		? 'keep-right-edge-fixed'
+		: legacyMovingEdge === 'both'
+			? 'keep-window-centered'
+			: 'keep-left-edge-fixed';
+}
+
+export function describeResizeOutcomes(request: ComparisonRequest): string[] {
+	const outcomes: string[] = [];
+	let viewport = request.viewport ?? { width: 1280, height: 720 };
+	for (const [index, action] of request.scenario.actions.entries()) {
+		if (action.type !== 'resize') {
+			continue;
+		}
+		const mode = resolveResizeMode(action);
+		const target = { width: action.width, height: action.height };
+		const widthChange = target.width === viewport.width
+			? 'width unchanged'
+			: `${viewport.width} to ${target.width} wide`;
+		let horizontalMotion: string;
+		if (target.width === viewport.width) {
+			horizontalMotion = 'neither vertical edge moves';
+		} else if (mode === 'keep-left-edge-fixed') {
+			horizontalMotion = `the left edge stays fixed while the right edge slides ${target.width < viewport.width ? 'left' : 'right'}`;
+		} else if (mode === 'keep-right-edge-fixed') {
+			horizontalMotion = `the right edge stays fixed while the left edge slides ${target.width < viewport.width ? 'right' : 'left'}`;
+		} else {
+			horizontalMotion = `both edges move ${target.width < viewport.width ? 'inward' : 'outward'} at the same rate and the window stays centered`;
+		}
+		const heightNote = target.height === viewport.height
+			? ''
+			: `; height ${target.height < viewport.height ? 'shrinks' : 'grows'} from ${viewport.height} to ${target.height}`;
+		outcomes.push(`Action ${index + 1} (resize, ${widthChange}): ${horizontalMotion}${heightNote}.`);
+		viewport = target;
+	}
+	return outcomes;
+}
 
 export type ScenarioAction =
 	| { type: 'goto'; path?: string; holdAfterMs?: number }
@@ -62,6 +112,7 @@ export interface ComparisonRequest {
 	afterLabel?: string;
 	beforeLabelAlignment?: LabelAlignment;
 	afterLabelAlignment?: LabelAlignment;
+	labelSize?: number;
 	borderColor?: string;
 	focusLocator?: string;
 	focusPadding?: number;
@@ -84,6 +135,14 @@ export interface ZoomCue {
 	durationMs: number;
 }
 
+export interface StopMotionFrames {
+	/** Absolute PNG paths in playback order, sized exactly per frameSizes. */
+	framePaths: string[];
+	frameSizes: Viewport[];
+	/** Capture-relative time when the last screenshot finished, so the renderer can cut the slow screenshot span out of the video. */
+	transitionEndMs: number;
+}
+
 export interface ResizeCue {
 	actionIndex: number;
 	from: Viewport;
@@ -91,6 +150,7 @@ export interface ResizeCue {
 	resizeMode: ResizeMode;
 	delayMs: number;
 	durationMs: number;
+	stopMotion?: StopMotionFrames;
 }
 
 export interface CaptureResult {
@@ -98,6 +158,8 @@ export interface CaptureResult {
 	observedColorScheme: Exclude<BrowserColorScheme, 'system'>;
 	timings: ActionTiming[];
 	replayOffsetMs: number;
+	/** Capture-relative time when the sync beacon flashed, matched against the recorded video to find the true video time origin. */
+	beaconAtMs: number;
 	recordingSize: Viewport;
 	resizeCues: ResizeCue[];
 	zoomCues: ZoomCue[];
@@ -166,9 +228,6 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	if ((request.outputMode ?? 'animation') === 'animation' && request.scenario.actions.length === 0) {
 		throw new Error('The scenario must contain at least one action.');
 	}
-	if (request.outputMode === 'image' && request.scenario.actions.length > 0) {
-		throw new Error('Static image comparisons cannot contain actions. Use animation mode whenever anything happens or changes.');
-	}
 	if (request.frameRate !== undefined) {
 		if ((request.outputMode ?? 'animation') === 'image') {
 			throw new Error('Frame rate is only available for animated GIF comparisons.');
@@ -194,6 +253,9 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	}
 	if (request.borderColor && !/^#[0-9a-f]{6}$/i.test(request.borderColor)) {
 		throw new Error('Border color must be a six-digit hex color such as #30363d.');
+	}
+	if (request.labelSize !== undefined && (!Number.isInteger(request.labelSize) || request.labelSize < 10 || request.labelSize > 72)) {
+		throw new Error('Label size must be an integer between 10 and 72 pixels.');
 	}
 	for (const [name, colorScheme] of [
 		['Color scheme', request.colorScheme],
@@ -268,6 +330,9 @@ function validateAction(action: ScenarioAction, index: number): void {
 			}
 			if (action.durationMs !== undefined && (!Number.isFinite(action.durationMs) || action.durationMs < 0 || action.durationMs > 10_000)) {
 				invalid('requires durationMs between 0 and 10000.');
+			}
+			if (action.captureStrategy !== undefined && !['stop-motion', 'live'].includes(action.captureStrategy)) {
+				invalid(`has unsupported captureStrategy "${action.captureStrategy}".`);
 			}
 			return;
 		case 'zoom': {
