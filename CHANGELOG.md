@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-12
+
+- Rewrote the README introduction in direct language. It now opens with what the extension produces, states plainly that the app is started and recorded from both versions, and drops the indirect phrasing.
+
 ## [0.1.1] - 2026-08-12
 
 - Rewrote the README introduction so the purpose and the pain it removes come across right away instead of after several paragraphs of mechanics.

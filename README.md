@@ -1,12 +1,14 @@
 # PR UI Compare
 
-PR UI Compare generates the visual evidence of changes made by creating a comparison gif. Ask your agent for a comparison, and the extension starts your app or web page from the working tree and again from any Git ref you tell it to compare to, drives both in a headless browser with Playwright while recording them, replays the same interactions in both versions, and renders a labeled side-by-side GIF or PNG you can drag straight into the pull request description.
+Show the fix instead of describing it. PR UI Compare records your app before and after a change and turns the two recordings into one labeled, side-by-side GIF or PNG that you can use for your PR.
 
-Doing this by hand is the motivating pain. Showing a fix means checking out the old code, starting the app, recording, switching back, and recording again, and the two clips still never line up. Here the whole capture is one request, both recordings play in lockstep, and nothing in your repository is created or modified.
+Ask your agent for a comparison gif. The extension starts your app twice, once from your working tree and once from the branch or commit you name, plays the same clicks, scrolls, and resizes through both in a headless browser, and renders the recordings side by side in perfect sync. Drag the result straight into the PR description.
 
-The Before side is any Git ref you name, such as a branch, a tag, or a commit SHA. The After side is always your working tree as it is right now, including uncommitted edits. Animated GIF is the default output. Static PNG covers any settled state, including a state reached through setup interactions. Ask for it when you want something visual to look at or share. Asking an agent to review a fix or explain what changed against `main` is a code question, and the agent should answer that by reading the code rather than by recording the application.
+Recording this by hand is tedious. Check out the old code, start the app, record, switch back, record again, edit the recordings, stitch them together, and yet, the two clips still never line up. With PR UI Compare it is one request, the recordings play in lockstep, and nothing in your repository is created or modified.
 
-The intended workflow is straightforward. Implement and test a visible UI change, commit and push when the final artifact is needed, generate the comparison, review it in VS Code, then drag the exported GIF into the GitHub PR description. An open pull request is not required.
+"Before" can be any branch, tag, or commit SHA. "After" is always your working tree exactly as it is, uncommitted edits included. Animated GIF is the default output. Ask for an image for things that are static or finished changing, and setup interactions can run first so a single PNG captures the settled state. And note that this extension is for producing visual artifacts. Agents should know not to use this for code comparison questions.
+
+The workflow is short. Make a visible UI change, generate the comparison, review it in VS Code, then drop the exported GIF into the GitHub PR description. An open pull request is not required.
 
 ## Features
 
