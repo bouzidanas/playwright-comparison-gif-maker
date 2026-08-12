@@ -8,27 +8,19 @@ Ask your agent for a comparison gif. The extension starts your app twice, once f
 
 ## Features
 
-- Resolves the baseline ref to an immutable commit SHA.
-- Builds the Before side in a temporary detached Git worktree, leaving your workspace untouched.
-- Starts each version on its own dynamic port.
-- Replays one declarative Playwright scenario against both versions.
-- Synchronizes every paired action so interactions and resizes begin and end together.
-- Keeps comparisons side by side, stacking only when a focused region is wider than 3:1.
-- Optionally tracks a focused element and crops to its padded bounds.
-- Shows the synthetic pointer only when a click or hover uses it.
-- Captures `comparison.png`, `before.png`, and `after.png` in static image mode.
-- Frames both panes and labels them with short commit IDs, such as `main (a1b2c3d4)`.
-- Exports `comparison.gif` together with synchronized `before.gif` and `after.gif`.
-- Stores recordings in VS Code storage, never in the repository.
-- Contributes the `/create-pr-ui-comparison` Agent Skill and `#createPrUiComparison` tool.
-
-## Motivation
-
-Recording this by hand is tedious. Check out the old code, start the app, record, switch back, record again, edit the recordings, stitch them together, and yet, the two clips still never line up. With PR UI Compare it is one request, the recordings play in lockstep, and nothing in your repository is created or modified.
-
-"Before" can be any branch, tag, or commit SHA. "After" is always your working tree exactly as it is, uncommitted edits included. Animated GIF is the default output. Ask for an image for things that are static or finished changing, and setup interactions can run first so a single PNG captures the settled state. And note that this extension is for producing visual artifacts. Agents should know not to use this for code comparison questions.
-
-The workflow is short. Make a visible UI change, generate the comparison, review it in VS Code, then drop the exported GIF into the GitHub PR description. An open pull request is not required.
+- Baseline pinned to an exact commit SHA
+- Before side built in a temporary Git worktree
+- Repository and workspace never modified
+- One Playwright scenario replayed in both versions
+- Paired actions begin and end in lockstep
+- Side-by-side layout, stacked for very wide focus regions
+- Optional crop that follows a chosen element
+- Synthetic pointer shown only during clicks and hovers
+- Static PNG mode for settled states
+- Framed panes labeled with short commit IDs
+- Combined GIF plus synchronized Before and After GIFs
+- Recordings kept in VS Code storage
+- Ships the `/create-pr-ui-comparison` Agent Skill and `#createPrUiComparison` tool
 
 ## Requirements
 
@@ -38,9 +30,24 @@ The workflow is short. Make a visible UI change, generate the comparison, review
 - Playwright-managed Chromium
 - FFmpeg
 
-Run **PR UI Compare: Install Managed Chromium** once after installing the extension. The headless browser shell is stored in Playwright's user cache. Each Playwright version requires a matching browser revision, but the extension does not install the larger headed Chromium build or launch Google Chrome from `/Applications` by default.
+## Setup
 
-FFmpeg is resolved from the `prUiCompare.ffmpegPath` setting first, then from PATH. When neither is available, run **PR UI Compare: Install FFmpeg** once to download a static FFmpeg build into the extension's global storage. Labels are drawn with the bundled Noto Sans font so output looks the same on every platform.
+1. Install the extension.
+2. Run **PR UI Compare: Install Managed Chromium** from the Command Palette.
+3. Run **PR UI Compare: Install FFmpeg**, unless FFmpeg is already on PATH or set in `prUiCompare.ffmpegPath`.
+4. Open and trust the workspace you want to record.
+
+The headless browser shell is stored in Playwright's user cache. Each Playwright version requires a matching browser revision, but the extension does not install the larger headed Chromium build or launch Google Chrome from `/Applications` by default.
+
+FFmpeg is resolved from the `prUiCompare.ffmpegPath` setting first, then from PATH, then from the copy the install command downloads into the extension's global storage. Labels are drawn with the bundled Noto Sans font so output looks the same on every platform.
+
+## Motivation
+
+Recording this by hand is tedious. Check out the old code, start the app, record, switch back, record again, edit the recordings, stitch them together, and yet, the two clips still never line up. With PR UI Compare it is one request, the recordings play in lockstep, and nothing in your repository is created or modified.
+
+"Before" can be any branch, tag, or commit SHA. "After" is always your working tree exactly as it is, uncommitted edits included. Animated GIF is the default output. Ask for an image for things that are static or finished changing, and setup interactions can run first so a single PNG captures the settled state. And note that this extension is for producing visual artifacts. Agents should know not to use this for code comparison questions.
+
+The workflow is short. Make a visible UI change, generate the comparison, review it in VS Code, then drop the exported GIF into the GitHub PR description. An open pull request is not required.
 
 ## Agent usage
 

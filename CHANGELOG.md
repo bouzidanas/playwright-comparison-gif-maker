@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-12
+
+- Cut the feature list down to short fragments, moved Requirements directly after Features, and added a numbered Setup section covering the Install Managed Chromium and Install FFmpeg commands.
+
 ## [0.1.3] - 2026-08-12
 
 - Added a demo comparison GIF to the README so the output is visible before installing.
