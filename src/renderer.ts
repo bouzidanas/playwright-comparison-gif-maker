@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
-import ffmpegPath from 'ffmpeg-static';
 import * as vscode from 'vscode';
+import { resolveFfmpegPath } from './ffmpegInstaller';
 import type {
 	ActionTiming,
 	CaptureRegion,
@@ -55,9 +55,6 @@ export async function renderComparisonImages(
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<RenderedImages> {
-	if (!ffmpegPath) {
-		throw new Error('No FFmpeg binary is available for this operating system and architecture.');
-	}
 	const comparisonImagePath = path.join(outputDirectory, 'comparison.png');
 	const beforeImagePath = path.join(outputDirectory, 'before.png');
 	const afterImagePath = path.join(outputDirectory, 'after.png');
@@ -126,9 +123,6 @@ export async function renderComparisonGif(
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<RenderedGifs> {
-	if (!ffmpegPath) {
-		throw new Error('No FFmpeg binary is available for this operating system and architecture.');
-	}
 	const comparisonGifPath = path.join(outputDirectory, 'comparison.gif');
 	const beforeGifPath = path.join(outputDirectory, 'before.gif');
 	const afterGifPath = path.join(outputDirectory, 'after.gif');
@@ -200,10 +194,10 @@ async function runFfmpeg(
 	token: vscode.CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<void> {
-	if (!ffmpegPath) {
-		throw new Error('No FFmpeg binary is available for this operating system and architecture.');
+	const executablePath = await resolveFfmpegPath();
+	if (!executablePath) {
+		throw new Error('FFmpeg was not found. Run the "PR UI Compare: Install FFmpeg" command, or set prUiCompare.ffmpegPath to an existing FFmpeg executable.');
 	}
-	const executablePath = ffmpegPath;
 	await new Promise<void>((resolve, reject) => {
 		let encoderOutput = '';
 		const child = spawn(executablePath, args, { windowsHide: true });
@@ -470,6 +464,7 @@ function createTextFilter(label: string, alignment: LabelAlignment, fontSize: nu
 	const boxBorder = Math.max(4, Math.round(fontSize * 7 / 22));
 	return [
 		`drawtext=text='${label}'`,
+		`fontfile='${escapeDrawText(labelFontPath())}'`,
 		'fontcolor=white',
 		`fontsize=${fontSize}`,
 		`x=${alignment.endsWith('left') ? String(margin) : `w-text_w-${margin}`}`,
@@ -1016,6 +1011,11 @@ function crop(region: CaptureRegion | undefined): string {
 
 function ffmpegColor(value: string): string {
 	return `0x${value.slice(1)}`;
+}
+
+// The bundled font keeps labels identical across platforms; dist and out both sit one level below assets.
+function labelFontPath(): string {
+	return path.join(__dirname, '..', 'assets', 'NotoSans-Regular.ttf').replaceAll('\\', '/');
 }
 
 function escapeDrawText(value: string): string {

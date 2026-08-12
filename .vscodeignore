@@ -1,8 +1,10 @@
 .vscode/**
 .vscode-test/**
+.github/**
 out/**
 src/**
 scripts/**
+*.vsix
 .gitignore
 .yarnrc
 esbuild.js

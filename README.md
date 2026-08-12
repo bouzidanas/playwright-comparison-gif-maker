@@ -32,10 +32,11 @@ The intended workflow is straightforward. Implement and test a visible UI change
 - A trusted local Git workspace
 - The package manager and runtime required by the application
 - Playwright-managed Chromium
+- FFmpeg
 
 Run **PR UI Compare: Install Managed Chromium** once after installing the extension. The headless browser shell is stored in Playwright's user cache. Each Playwright version requires a matching browser revision, but the extension does not install the larger headed Chromium build or launch Google Chrome from `/Applications` by default.
 
-PR UI Compare packages FFmpeg, so a separate media encoder is not required.
+FFmpeg is resolved from the `prUiCompare.ffmpegPath` setting first, then from PATH. When neither is available, run **PR UI Compare: Install FFmpeg** once to download a static FFmpeg build into the extension's global storage. Labels are drawn with the bundled Noto Sans font so output looks the same on every platform.
 
 ## Agent usage
 

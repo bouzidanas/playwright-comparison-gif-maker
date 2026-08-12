@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { installManagedChromium } from './browserInstaller';
 import { CreateComparisonTool } from './compareTool';
 import { ComparisonRunner } from './comparisonRunner';
+import { initializeFfmpegLocator, installFfmpeg } from './ffmpegInstaller';
 import { GitRepository } from './gitRepository';
 import type { ComparisonRequest, ComparisonResult, ScenarioAction } from './model';
 import { showComparisonResult } from './previewPanel';
@@ -12,6 +13,7 @@ import { cleanupExpiredSessions } from './sessionStorage';
 export function activate(context: vscode.ExtensionContext): void {
 	const output = vscode.window.createOutputChannel('PR UI Compare', { log: true });
 	context.subscriptions.push(output);
+	initializeFfmpegLocator(context.globalStorageUri.fsPath);
 	const storageRoot = (context.storageUri ?? context.globalStorageUri).fsPath;
 	const runner = new ComparisonRunner(storageRoot, output);
 	const retentionDays = vscode.workspace.getConfiguration('prUiCompare').get<number>('retentionDays', 7);
@@ -36,6 +38,15 @@ export function activate(context: vscode.ExtensionContext): void {
 				cancellable: true,
 			}, async (_progress, token) => installManagedChromium(output, token));
 			await vscode.window.showInformationMessage('Managed Chromium is ready for PR UI Compare.');
+		}),
+		vscode.commands.registerCommand('pr-ui-compare.installFfmpeg', async () => {
+			output.show(true);
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: 'Installing FFmpeg for PR UI Compare',
+				cancellable: true,
+			}, async (_progress, token) => installFfmpeg(output, token));
+			await vscode.window.showInformationMessage('FFmpeg is ready for PR UI Compare.');
 		}),
 		vscode.commands.registerCommand('pr-ui-compare.createComparison', async () => {
 			try {

@@ -3,9 +3,14 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Generate synchronized Before and After UI GIFs and images for pull requests with Playwright.",
-  "version": "0.0.20",
+  "version": "0.1.0",
   "author": "Anas Bouzid",
   "license": "MIT",
+  "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#0d1117",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/bouzidanas/playwright-comparison-gif-maker.git"
@@ -53,6 +58,12 @@
       {
         "command": "pr-ui-compare.installBrowser",
         "title": "Install Managed Chromium",
+        "category": "PR UI Compare",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "pr-ui-compare.installFfmpeg",
+        "title": "Install FFmpeg",
         "category": "PR UI Compare",
         "icon": "$(cloud-download)"
       }
@@ -377,6 +388,11 @@
           "default": false,
           "scope": "machine",
           "description": "Allow fallback to installed Google Chrome or Microsoft Edge when managed Chromium is unavailable. Keep disabled on macOS to avoid launching applications from the system Applications folder."
+        },
+        "prUiCompare.ffmpegPath": {
+          "type": "string",
+          "scope": "machine",
+          "description": "Path to an FFmpeg executable. When empty, the extension uses FFmpeg from PATH or the copy installed by the PR UI Compare: Install FFmpeg command."
         }
       }
     }
@@ -397,8 +413,7 @@
     "test:e2e": "npm run compile-tests && npm run compile && npm run lint && npm-run-all -s test:e2e:animation test:e2e:image",
     "test:e2e:animation": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"records and renders a dirty working tree\" --timeout 180000",
     "test:e2e:image": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"captures and composes final-state PNG images\" --timeout 180000",
-    "check": "npm run compile && npm test",
-    "package:vsix": "node scripts/package-vsix.js"
+    "check": "npm run compile && npm test"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -410,6 +425,7 @@
     "cross-env": "^10.1.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.5.0",
+    "ffmpeg-static": "^5.3.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.1"
@@ -419,7 +435,6 @@
     "serialize-javascript": "^7.0.6"
   },
   "dependencies": {
-    "ffmpeg-static": "^5.3.0",
     "playwright-core": "^1.62.1"
   }
 }

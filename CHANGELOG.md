@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-11
+
+- Stopped bundling the FFmpeg binary. FFmpeg now resolves from the `prUiCompare.ffmpegPath` setting, then PATH, then a copy downloaded on demand by the new **PR UI Compare: Install FFmpeg** command, mirroring the managed Chromium flow. This removes the non-redistributable binary from the package and shrinks the VSIX.
+- Bundled the Noto Sans font and passed it to FFmpeg's drawtext explicitly, so labels render identically on Windows, Linux, and macOS instead of depending on fontconfig defaults.
+
 ## [0.0.20] - 2026-08-11
 
 - Recommended a label format in the tool schema, skill, and instructions. Agents are pointed at `Before • main` and `After • fix-overflow`, which render with the short SHA appended, and are told never to write a SHA themselves. A label the user states explicitly is still passed through unchanged.
