@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Generate synchronized Before and After UI GIFs and images for pull requests with Playwright.",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -138,11 +138,11 @@
             },
             "beforeLabel": {
               "type": "string",
-              "description": "Optional short label shown over the Before recording."
+              "description": "Optional short label shown over the Before recording. The short commit SHA is appended automatically, so never write one here. Recommended form is the side, a bullet, then the ref, such as \"Before \u2022 main\", which renders as \"Before \u2022 main (7c52123c)\". A bare ref name such as \"main\" is also good. Omitting this uses the baseline ref. When the user states a label, use it exactly as given."
             },
             "afterLabel": {
               "type": "string",
-              "description": "Optional short label shown over the After recording."
+              "description": "Optional short label shown over the After recording. The short commit SHA is appended automatically, so never write one here. Recommended form is the side, a bullet, then the branch, such as \"After \u2022 fix-overflow\", which renders as \"After \u2022 fix-overflow (efc0fab4)\". A bare branch name is also good. Omitting this uses the current branch. When the user states a label, use it exactly as given."
             },
             "beforeLabelAlignment": {
               "type": "string",

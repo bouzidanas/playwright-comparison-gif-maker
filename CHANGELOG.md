@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.20] - 2026-08-11
+
+- Recommended a label format in the tool schema, skill, and instructions. Agents are pointed at `Before • main` and `After • fix-overflow`, which render with the short SHA appended, and are told never to write a SHA themselves. A label the user states explicitly is still passed through unchanged.
+
 ## [0.0.19] - 2026-08-11
 
 - Allowed scenario actions in static image mode, so any settled state can be photographed, not just the initial route. The actions replay identically in both versions as setup, then a single PNG captures the final state, which covers elements that only exist after loading a document or opening a panel.
