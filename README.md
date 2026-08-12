@@ -1,10 +1,10 @@
 # PR UI Compare
 
-PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison covers any settled state, including a state reached through setup interactions.
+PR UI Compare generates the visual evidence for a UI change. Ask your agent for a comparison, and the extension runs your working tree next to any Git ref, replays the same interactions in both versions, and renders a labeled side-by-side GIF or PNG you can drag straight into the pull request description.
 
-The Before side is any Git ref you name, such as a branch, a tag, or a commit SHA. The After side is always your working tree as it is right now, including uncommitted edits. So you can compare against any commit or branch, and you can compare two of them by checking one out first and pointing the baseline at the other. What you cannot do yet is name both sides in the same request and leave your working tree alone.
+Doing this by hand is the motivating pain. Showing a fix means checking out the old code, starting the app, recording, switching back, and recording again, and the two clips still never line up. Here the whole capture is one request, both recordings play in lockstep, and nothing in your repository is created or modified.
 
-The tool is for generating visual evidence. Ask for it when you want a GIF or image to look at or attach to a pull request. Asking an agent to compare a branch against `main`, review a fix, or explain what changed is a code question, and the agent should answer that by reading the code rather than by recording the application.
+The Before side is any Git ref you name, such as a branch, a tag, or a commit SHA. The After side is always your working tree as it is right now, including uncommitted edits. Animated GIF is the default output. Static PNG covers any settled state, including a state reached through setup interactions. Ask for it when you want something visual to look at or share. Asking an agent to review a fix or explain what changed against `main` is a code question, and the agent should answer that by reading the code rather than by recording the application.
 
 The intended workflow is straightforward. Implement and test a visible UI change, commit and push when the final artifact is needed, generate the comparison, review it in VS Code, then drag the exported GIF into the GitHub PR description. An open pull request is not required.
 
@@ -40,17 +40,17 @@ FFmpeg is resolved from the `prUiCompare.ffmpegPath` setting first, then from PA
 
 ## Agent usage
 
-Ask Copilot something similar to:
+Ask Copilot in plain language. Mention whether you want a gif or an image, the change you want to see, and what to compare against:
 
 ```text
-Create a PR UI comparison that demonstrates the mobile menu fix against upstream/main.
+Make a comparison gif of this dropdown fix against main.
 ```
-
-For a static comparison, ask:
 
 ```text
-Create a static PR UI image comparison showing the card styling change against main.
+I want a before and after image comparing the new card styling to what's on main.
 ```
+
+The agent picks the tool up from the request. It does not need the extension named, and it works out the start command, readiness URL, and scenario actions by inspecting the project.
 
 The agent sets `outputMode` to `image` for an explicit static request or when the subject is a settled state that holds still. Image mode accepts scenario actions, and they run as setup rather than as the subject. Both versions replay the same actions, then a single PNG captures the settled final state, so a panel that only appears after loading a document or opening an editor can still be compared as a still image. Use animation when the change the user needs to see is the motion itself, such as a transition, loading sequence, resize, zoom, or scroll. When the request is ambiguous, animation is always the default. The synthetic pointer is not drawn in static images.
 
@@ -149,7 +149,7 @@ npm install
 npm run compile
 npm test
 npm run test:e2e
-npm run package:vsix
+npx vsce package
 ```
 
 `npm test` runs model and renderer tests in a VS Code extension host. `npm run test:e2e` additionally uses managed Chromium to run the complete Git worktree, server, Playwright, FFmpeg, metadata, and cleanup pipeline.

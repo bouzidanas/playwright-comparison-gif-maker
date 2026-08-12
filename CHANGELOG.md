@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-12
+
+- Rewrote the README introduction so the purpose and the pain it removes come across right away instead of after several paragraphs of mechanics.
+- Replaced the agent prompt examples with natural requests. Users say something like "make a comparison gif of this dropdown fix against main", they do not name the extension, so the examples now show what people actually type.
+- Removed the stale reference to the deleted per-platform packaging script from the development section.
+
 ## [0.1.0] - 2026-08-11
 
 - Stopped bundling the FFmpeg binary. FFmpeg now resolves from the `prUiCompare.ffmpegPath` setting, then PATH, then a copy downloaded on demand by the new **PR UI Compare: Install FFmpeg** command, mirroring the managed Chromium flow. This removes the non-redistributable binary from the package and shrinks the VSIX.
