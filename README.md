@@ -4,29 +4,31 @@ Show the fix instead of describing it. PR UI Compare records your app before and
 
 Ask your agent for a comparison gif. The extension starts your app twice, once from your working tree and once from the branch or commit you name, plays the same clicks, scrolls, and resizes through both in a headless browser, and renders the recordings side by side in perfect sync. Drag the result straight into the PR description.
 
+![A PR UI Compare GIF showing Before and After recordings side by side](assets/demo-comparison.gif)
+
+## Features
+
+- Resolves the baseline ref to an immutable commit SHA.
+- Builds the Before side in a temporary detached Git worktree, leaving your workspace untouched.
+- Starts each version on its own dynamic port.
+- Replays one declarative Playwright scenario against both versions.
+- Synchronizes every paired action so interactions and resizes begin and end together.
+- Keeps comparisons side by side, stacking only when a focused region is wider than 3:1.
+- Optionally tracks a focused element and crops to its padded bounds.
+- Shows the synthetic pointer only when a click or hover uses it.
+- Captures `comparison.png`, `before.png`, and `after.png` in static image mode.
+- Frames both panes and labels them with short commit IDs, such as `main (a1b2c3d4)`.
+- Exports `comparison.gif` together with synchronized `before.gif` and `after.gif`.
+- Stores recordings in VS Code storage, never in the repository.
+- Contributes the `/create-pr-ui-comparison` Agent Skill and `#createPrUiComparison` tool.
+
+## Motivation
+
 Recording this by hand is tedious. Check out the old code, start the app, record, switch back, record again, edit the recordings, stitch them together, and yet, the two clips still never line up. With PR UI Compare it is one request, the recordings play in lockstep, and nothing in your repository is created or modified.
 
 "Before" can be any branch, tag, or commit SHA. "After" is always your working tree exactly as it is, uncommitted edits included. Animated GIF is the default output. Ask for an image for things that are static or finished changing, and setup interactions can run first so a single PNG captures the settled state. And note that this extension is for producing visual artifacts. Agents should know not to use this for code comparison questions.
 
 The workflow is short. Make a visible UI change, generate the comparison, review it in VS Code, then drop the exported GIF into the GitHub PR description. An open pull request is not required.
-
-## Features
-
-- Resolves the selected baseline ref to an immutable commit SHA.
-- Creates a detached temporary Git worktree without changing the current workspace.
-- Starts Before and After applications sequentially on separate dynamic ports.
-- Replays one declarative Playwright scenario against both applications.
-- Captures final-state `comparison.png`, `before.png`, and `after.png` files for static visual changes.
-- Keeps the synthetic pointer out of view unless a click or hover action uses it.
-- Tracks an optional focused element throughout the scenario and crops to its padded bounds.
-- Keeps normal comparisons side by side.
-- Automatically stacks top and bottom only when a focused region is strictly greater than three times wider than tall.
-- Synchronizes each paired action segment so interactions and resize transitions begin and end together even when the two application versions respond at different speeds.
-- Renders a visible frame and divider around the two recordings.
-- Renders labels inside the outer top corners with short commit IDs, such as `main (a1b2c3d4)` and `fix-toolbar (e5f6a7b8)`.
-- Saves synchronized `before.gif` and `after.gif` files beside `comparison.gif` and exports all three together.
-- Stores recordings in VS Code workspace storage rather than the repository.
-- Contributes the `/create-pr-ui-comparison` Agent Skill and `#createPrUiComparison` tool.
 
 ## Requirements
 

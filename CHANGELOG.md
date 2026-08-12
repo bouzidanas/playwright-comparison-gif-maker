@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-12
+
+- Added a demo comparison GIF to the README so the output is visible before installing.
+- Shortened every feature bullet and moved the motivation into its own section, so the listing reads quickly.
+
 ## [0.1.2] - 2026-08-12
 
 - Rewrote the README introduction in direct language. It now opens with what the extension produces, states plainly that the app is started and recorded from both versions, and drops the indirect phrasing.

@@ -5,6 +5,7 @@ out/**
 src/**
 scripts/**
 *.vsix
+assets/demo-comparison.gif
 .gitignore
 .yarnrc
 esbuild.js
