@@ -47,11 +47,18 @@ suite('Comparison model', () => {
 		}));
 	});
 
-	test('rejects actions in static image mode', () => {
-		assert.throws(
-			() => validateComparisonRequest({ ...validRequest, outputMode: 'image' }),
-			/cannot contain actions/,
-		);
+	test('accepts setup actions in static image mode', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({
+			...validRequest,
+			outputMode: 'image',
+			scenario: {
+				name: 'Panel opened by a click',
+				actions: [
+					{ type: 'click', locator: 'role=button[name="Open editor"]' },
+					{ type: 'waitFor', locator: '.ed-setchip', state: 'visible' },
+				],
+			},
+		}));
 	});
 
 	test('validates animation frame rate', () => {

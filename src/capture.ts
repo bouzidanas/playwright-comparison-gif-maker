@@ -110,6 +110,8 @@ export async function captureStaticScenario(
 				throw new Error(`Focus locator "${focusLocator}" did not have visible bounds in the final state.`);
 			}
 		}
+		// The synthetic pointer only explains motion, so a still frame should not keep it.
+		await page.evaluate(() => document.querySelector('[data-pr-ui-compare-cursor]')?.remove());
 		const imagePath = path.join(outputDirectory, 'screenshot.png');
 		await page.screenshot({ path: imagePath });
 		await context.close();

@@ -228,9 +228,6 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	if ((request.outputMode ?? 'animation') === 'animation' && request.scenario.actions.length === 0) {
 		throw new Error('The scenario must contain at least one action.');
 	}
-	if (request.outputMode === 'image' && request.scenario.actions.length > 0) {
-		throw new Error('Static image comparisons cannot contain actions. Use animation mode whenever anything happens or changes.');
-	}
 	if (request.frameRate !== undefined) {
 		if ((request.outputMode ?? 'animation') === 'image') {
 			throw new Error('Frame rate is only available for animated GIF comparisons.');

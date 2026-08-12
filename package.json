@@ -2,8 +2,8 @@
   "name": "pr-ui-compare",
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
-  "description": "Create synchronized Before and After UI comparisons for pull requests with Playwright.",
-  "version": "0.0.18",
+  "description": "Generate synchronized Before and After UI GIFs and images for pull requests with Playwright.",
+  "version": "0.0.19",
   "author": "Anas Bouzid",
   "license": "MIT",
   "repository": {
@@ -61,8 +61,8 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Creates a labeled Before and After comparison without creating or modifying files in the user's repository. Animation is the default and must be used whenever anything happens or changes, including any event, interaction, hover, transition, loading sequence, resize, zoom, scroll, opening, closing, or state mutation. Set outputMode to image only when the user explicitly requests static images or the subject is truly motionless and requires no actions at all. Image mode accepts an empty action list only and captures the settled initial route as PNG files. When uncertain, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, stores artifacts outside the repository, and opens a preview. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable. The start and optional install commands execute project code and require user confirmation.",
-        "userDescription": "Create synchronized GIF UI comparisons by default, or static PNGs only for explicit, completely motionless cases.",
+        "modelDescription": "Records the running application and produces GIF or PNG files that show a labeled Before and After side by side. Use this tool only when the user wants a visual artifact to look at or share, such as a GIF, a screenshot, a Before and After image, or a recorded demonstration of a UI fix. Do not use it to compare code, read a diff, summarize what changed against a branch or ref, review a pull request, or verify that a fix works. A request such as compare my fix on this branch to main is a code comparison and must be answered by reading the code, not by running this tool, unless the user asks for a GIF, images, screenshots, or something visual to look at. When it is unclear whether the user wants generated media, ask before running the tool. Animation is the default and must be used whenever the change the user needs to see is itself motion, including any event, interaction, hover, transition, loading sequence, resize, zoom, scroll, opening, closing, or state mutation. Set outputMode to image when the subject is a settled state that holds still, even when reaching that state requires interactions. In image mode the actions are setup steps rather than the subject: they replay identically in both versions and a single PNG captures the settled final state, so any element in any reachable app state can be compared as a still. When uncertain between the two output modes, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, stores artifacts outside the repository, and opens a preview. It creates and modifies no files in the user's repository. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable. The start and optional install commands execute project code and require user confirmation.",
+        "userDescription": "Generate Before and After GIFs or PNGs of the running app when you want visual evidence of a UI change.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
         "icon": "$(record)",
@@ -81,7 +81,7 @@
                 "animation",
                 "image"
               ],
-              "description": "Output type. animation is the default and is required whenever anything happens or changes. image is only for explicit or truly motionless, action-free initial-route PNG comparisons."
+              "description": "Output type. animation is the default and is required whenever the change the user needs to see is the motion itself. image captures a single settled state as PNG files, and its actions are replayed as setup so the state being compared can be anywhere in the app, not just the initial route."
             },
             "frameRate": {
               "type": "integer",

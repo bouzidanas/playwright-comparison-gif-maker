@@ -1,6 +1,6 @@
 ---
 name: create-pr-ui-comparison
-description: "Create synchronized GIF Before and After UI comparisons by default, with static PNG as a narrow exception for explicit, completely motionless cases. Use when: the user asks for a PR visual comparison, comparison against a Git ref, screenshot comparison, or recorded UI fix demonstration."
+description: "Produce Before and After GIF or PNG files from the running application. Use when the user asks for a visual artifact to look at, such as a GIF, screenshot, Before and After image, theme or visual-state comparison, or a recorded demonstration of a UI fix. Do not use for code comparisons, diff reviews, or change summaries that need no generated media."
 argument-hint: Describe the UI behavior to demonstrate
 ---
 
@@ -8,9 +8,13 @@ argument-hint: Describe the UI behavior to demonstrate
 
 Use the `pr-ui-compare_createComparison` tool to produce a reviewable artifact outside the repository.
 
-Animation is the default. Use `outputMode: image` only when the user explicitly asks for static images or the comparison is truly motionless. Truly static means nothing happens during the demonstration: no events, clicks, hovers, key presses, transitions, loading sequence, resizing, zooming, scrolling, opening, closing, or state changes. Image mode requires an empty action list and captures only the settled initial route. When there is any doubt, use `animation`.
+This tool exists to generate media. Run it only when the user wants a GIF or image to look at or share. A request to compare a branch against `main`, review a fix, explain what changed, or check that something works is a code question, and it should be answered by reading the code and the diff. The tool starts two copies of the application and records them, which is slow and pointless when nobody asked for a picture. If it is unclear whether the user wants generated media, ask first.
 
-Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or initial layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files and is required for every scenario action.
+Animation is the default. Use `outputMode: image` when the user explicitly asks for static images, or when the thing being compared is a settled state that holds still once it is reached. Use `animation` when the change the user needs to see is the motion itself, such as a transition, a loading sequence, a resize, a scroll, or anything that only makes sense while it is happening. When there is any doubt, use `animation`.
+
+Image mode is not limited to the initial route. Its actions are setup steps rather than the subject, so list whatever clicks, hovers, key presses, navigation, or waits are needed to bring the app into the state you want to photograph. The actions replay identically in both versions, then a single PNG captures the settled final state, so an element that only exists after loading a document or opening an editor can still be compared as a still image. Finish with a `waitFor` on the element you care about, and add a short `hold` when the state needs a moment to settle. The synthetic pointer is not drawn in static images.
+
+Static image mode is appropriate for an already-visible difference in colors, typography, spacing, icons, borders, light versus dark appearance, or layout. It creates `comparison.png`, `before.png`, and `after.png`. Animation mode creates synchronized GIF files.
 
 For animation, set `frameRate` from 5 to 30 fps. The default is 24 fps. Use 30 fps when the evidence contains fast visual events, short transitions, quick orientation changes, or camera zoom where intermediate frames matter. Use 15 fps or lower only for slow, simple motion when reducing file size matters more than temporal detail. Do not set frame rate for image mode.
 

@@ -118,7 +118,10 @@ suite('Comparison runner end to end', function () {
 				viewport: { width: 640, height: 480 },
 				scenario: {
 					name: 'Static panel comparison',
-					actions: [],
+					actions: [
+						{ type: 'click', locator: 'role=button[name="Toggle panel"]' },
+						{ type: 'waitFor', locator: '#panel.open', state: 'visible', holdAfterMs: 400 },
+					],
 				},
 			};
 			const result = await new ComparisonRunner(storagePath, output).run(
@@ -146,6 +149,18 @@ suite('Comparison runner end to end', function () {
 			const before = await readFile(result.beforeImagePath);
 			assert.strictEqual(before.readUInt32BE(16), 486);
 			assert.strictEqual(before.readUInt32BE(20), 366);
+			if (!ffmpegPath) {
+				assert.fail('No FFmpeg binary is available for end-to-end panel checks.');
+			}
+			const beforePanel = await readImageRowBounds(ffmpegPath, result.beforeImagePath, 486, 150);
+			const afterPanel = await readImageRowBounds(ffmpegPath, result.afterImagePath, 486, 150);
+			const beforePanelWidth = beforePanel.max - beforePanel.min;
+			const afterPanelWidth = afterPanel.max - afterPanel.min;
+			assert.ok(beforePanelWidth > 120, `The setup click did not open the Before panel: ${beforePanelWidth} pixels wide.`);
+			assert.ok(
+				afterPanelWidth > beforePanelWidth * 1.3,
+				`The opened panel widths do not reflect the fix: ${beforePanelWidth} and ${afterPanelWidth} pixels.`,
+			);
 			await assert.rejects(stat(path.join(result.sessionDirectory, 'before-worktree')));
 		} finally {
 			output.dispose();
@@ -252,4 +267,45 @@ async function readGifPageBounds(
 function isPagePixel([red, green, blue]: [number, number, number]): boolean {
 	const isBlueBorder = blue > 150 && blue > red * 1.4 && blue > green * 1.15;
 	return !isBlueBorder && red + green + blue > 120;
+}
+
+/** Horizontal extent of the saturated panel color on one row, which neither background nor border reaches. */
+async function readImageRowBounds(
+	executablePath: string,
+	imagePath: string,
+	width: number,
+	y: number,
+): Promise<{ min: number; max: number }> {
+	return new Promise((resolve, reject) => {
+		const chunks: Buffer[] = [];
+		const child = spawn(executablePath, [
+			'-v', 'error',
+			'-i', imagePath,
+			'-vf', `crop=iw:1:0:${y},format=rgb24`,
+			'-f', 'rawvideo',
+			'pipe:1',
+		], { windowsHide: true });
+		child.stdout.on('data', data => chunks.push(Buffer.from(data)));
+		child.once('error', reject);
+		child.once('exit', code => {
+			const bytes = Buffer.concat(chunks);
+			if (code !== 0 || bytes.length < width * 3) {
+				reject(new Error(`Image row sampling exited with ${code}.`));
+				return;
+			}
+			const matches: number[] = [];
+			for (let x = 0; x < width; x += 1) {
+				const offset = x * 3;
+				const channels = [bytes[offset], bytes[offset + 1], bytes[offset + 2]];
+				if (Math.max(...channels) - Math.min(...channels) > 40) {
+					matches.push(x);
+				}
+			}
+			if (matches.length === 0) {
+				reject(new Error(`Image row ${y} of ${imagePath} did not contain panel pixels.`));
+				return;
+			}
+			resolve({ min: matches[0], max: matches.at(-1)! });
+		});
+	});
 }

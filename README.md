@@ -1,6 +1,8 @@
 # PR UI Compare
 
-PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison is a narrow exception for explicit, completely motionless cases. Both evaluate the same source against a baseline Git revision and the current working tree.
+PR UI Compare creates labeled animated GIF comparisons by default for a pull request. Static PNG comparison covers any settled state, including a state reached through setup interactions. Both evaluate the same source against a baseline Git revision and the current working tree.
+
+The tool is for generating visual evidence. Ask for it when you want a GIF or image to look at or attach to a pull request. Asking an agent to compare a branch against `main`, review a fix, or explain what changed is a code question, and the agent should answer that by reading the code rather than by recording the application.
 
 The intended workflow is straightforward. Implement and test a visible UI change, commit and push when the final artifact is needed, generate the comparison, review it in VS Code, then drag the exported GIF into the GitHub PR description. An open pull request is not required.
 
@@ -47,7 +49,7 @@ For a static comparison, ask:
 Create a static PR UI image comparison showing the card styling change against main.
 ```
 
-The agent sets `outputMode` to `image` only for an explicit or truly motionless comparison. Image mode requires an empty action list and captures the settled initial route as-is. If anything happens or changes, including an event, interaction, transition, loading sequence, resize, zoom, scroll, opening, or closing, use animation. When the request is ambiguous, animation is always the default.
+The agent sets `outputMode` to `image` for an explicit static request or when the subject is a settled state that holds still. Image mode accepts scenario actions, and they run as setup rather than as the subject. Both versions replay the same actions, then a single PNG captures the settled final state, so a panel that only appears after loading a document or opening an editor can still be compared as a still image. Use animation when the change the user needs to see is the motion itself, such as a transition, loading sequence, resize, zoom, or scroll. When the request is ambiguous, animation is always the default. The synthetic pointer is not drawn in static images.
 
 Animated GIF frame rate is configurable from 5 to 30 fps and defaults to 24. Use 30 fps for fast visual events, short transitions, or detailed camera movement. Lower rates reduce file size for slow and simple motion. Static image mode does not accept frame rate.
 
