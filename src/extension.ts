@@ -5,6 +5,7 @@ import { installManagedChromium } from './browserInstaller';
 import { CreateComparisonTool } from './compareTool';
 import { ComparisonRunner } from './comparisonRunner';
 import { initializeFfmpegLocator, installFfmpeg } from './ffmpegInstaller';
+import { CancellationError, setHostConfiguration } from './host';
 import { GitRepository } from './gitRepository';
 import type { ComparisonRequest, ComparisonResult, ScenarioAction } from './model';
 import { showComparisonResult } from './previewPanel';
@@ -14,6 +15,10 @@ export function activate(context: vscode.ExtensionContext): void {
 	const output = vscode.window.createOutputChannel('PR UI Compare', { log: true });
 	context.subscriptions.push(output);
 	initializeFfmpegLocator(context.globalStorageUri.fsPath);
+	setHostConfiguration({
+		allowSystemBrowser: () => vscode.workspace.getConfiguration('prUiCompare').get<boolean>('allowSystemBrowser', false),
+		ffmpegPath: () => vscode.workspace.getConfiguration('prUiCompare').get<string>('ffmpegPath') || undefined,
+	});
 	const storageRoot = (context.storageUri ?? context.globalStorageUri).fsPath;
 	const runner = new ComparisonRunner(storageRoot, output);
 	const retentionDays = vscode.workspace.getConfiguration('prUiCompare').get<number>('retentionDays', 7);
@@ -24,7 +29,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	}, error => output.error(`Could not clean expired sessions: ${String(error)}`));
 	const execute = async (request: ComparisonRequest, token: vscode.CancellationToken): Promise<ComparisonResult> => {
 		const workspacePath = requireWorkspace();
-		const result = await runWithProgress(runner, workspacePath, request, token);
+		const result = await runWithProgress(runner, workspacePath, request, token).catch(rethrowForVsCode);
 		await showComparisonResult(result, request);
 		return result;
 	};
@@ -36,7 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
 				location: vscode.ProgressLocation.Notification,
 				title: 'Installing Chromium for PR UI Compare',
 				cancellable: true,
-			}, async (_progress, token) => installManagedChromium(output, token));
+			}, async (_progress, token) => installManagedChromium(output, token).catch(rethrowForVsCode));
 			await vscode.window.showInformationMessage('Managed Chromium is ready for PR UI Compare.');
 		}),
 		vscode.commands.registerCommand('pr-ui-compare.installFfmpeg', async () => {
@@ -45,7 +50,7 @@ export function activate(context: vscode.ExtensionContext): void {
 				location: vscode.ProgressLocation.Notification,
 				title: 'Installing FFmpeg for PR UI Compare',
 				cancellable: true,
-			}, async (_progress, token) => installFfmpeg(output, token));
+			}, async (_progress, token) => installFfmpeg(output, token).catch(rethrowForVsCode));
 			await vscode.window.showInformationMessage('FFmpeg is ready for PR UI Compare.');
 		}),
 		vscode.commands.registerCommand('pr-ui-compare.createComparison', async () => {
@@ -62,6 +67,11 @@ export function activate(context: vscode.ExtensionContext): void {
 		}),
 		vscode.lm.registerTool('pr-ui-compare_createComparison', new CreateComparisonTool(execute)),
 	);
+}
+
+// The engine throws its own CancellationError; VS Code only treats its own class as a cancel.
+function rethrowForVsCode(error: unknown): never {
+	throw error instanceof CancellationError ? new vscode.CancellationError() : error;
 }
 
 function requireWorkspace(): string {

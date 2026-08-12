@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
 import { captureDirectory, captureScenario, captureStaticScenario } from './capture';
 import { GitRepository } from './gitRepository';
+import { CancellationError, type CancellationToken, type OutputSink } from './host';
 import {
 	expandPortTemplate,
 	validateComparisonRequest,
@@ -17,13 +17,13 @@ import { detectSyncBeacon, renderComparisonGif, renderComparisonImages, resolveC
 export class ComparisonRunner {
 	constructor(
 		private readonly storageRoot: string,
-		private readonly output: vscode.OutputChannel,
+		private readonly output: OutputSink,
 	) {}
 
 	async run(
 		workspacePath: string,
 		request: ComparisonRequest,
-		token: vscode.CancellationToken,
+		token: CancellationToken,
 		onProgress: (message: string) => void,
 	): Promise<ComparisonResult> {
 		validateComparisonRequest(request);
@@ -187,7 +187,7 @@ export class ComparisonRunner {
 	private async resolveVideoAlignedOffset(
 		capture: CaptureResult,
 		side: string,
-		token: vscode.CancellationToken,
+		token: CancellationToken,
 	): Promise<number> {
 		try {
 			const beaconVideoMs = await detectSyncBeacon(capture.videoPath, capture.beaconAtMs, token);
@@ -197,7 +197,7 @@ export class ComparisonRunner {
 			}
 			return capture.replayOffsetMs + (beaconVideoMs - capture.beaconAtMs);
 		} catch (error) {
-			if (error instanceof vscode.CancellationError) {
+			if (error instanceof CancellationError) {
 				throw error;
 			}
 			this.output.appendLine(`${side} sync beacon detection failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -210,7 +210,7 @@ export class ComparisonRunner {
 		request: ComparisonRequest,
 		side: 'before' | 'after',
 		sessionDirectory: string,
-		token: vscode.CancellationToken,
+		token: CancellationToken,
 	): Promise<StaticCaptureResult> {
 		const port = await findOpenPort();
 		const command = expandPortTemplate(request.startCommand, port);
@@ -242,7 +242,7 @@ export class ComparisonRunner {
 		request: ComparisonRequest,
 		side: 'before' | 'after',
 		sessionDirectory: string,
-		token: vscode.CancellationToken,
+		token: CancellationToken,
 	): Promise<CaptureResult> {
 		const port = await findOpenPort();
 		const command = expandPortTemplate(request.startCommand, port);

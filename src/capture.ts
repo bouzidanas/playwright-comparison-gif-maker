@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
-import * as vscode from 'vscode';
+import { CancellationError, hostConfiguration, type CancellationToken } from './host';
 import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
 import { resolveResizeMode } from './model';
 
@@ -26,7 +26,7 @@ export async function captureScenario(
 	focusPadding: number,
 	frameRate: number,
 	outputDirectory: string,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 ): Promise<CaptureResult> {
 	const browser = await launchBrowser();
 	try {
@@ -86,7 +86,7 @@ export async function captureStaticScenario(
 	focusLocator: string | undefined,
 	focusPadding: number,
 	outputDirectory: string,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 ): Promise<StaticCaptureResult> {
 	const browser = await launchBrowser();
 	try {
@@ -136,7 +136,7 @@ async function launchBrowser(): Promise<Browser> {
 	} catch (error) {
 		failures.push(`managed Chromium: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	const allowSystemBrowser = vscode.workspace.getConfiguration('prUiCompare').get<boolean>('allowSystemBrowser', false);
+	const allowSystemBrowser = hostConfiguration().allowSystemBrowser();
 	if (!allowSystemBrowser) {
 		throw new Error(
 			'No managed Chromium installation was found. Run "PR UI Compare: Install Managed Chromium" and retry. ' +
@@ -168,13 +168,13 @@ async function replayScenario(
 	zoomCues: ZoomCue[],
 	frameRate: number,
 	outputDirectory: string,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 ): Promise<ActionTiming[]> {
 	const timings: ActionTiming[] = [];
 	const recordingStartedAt = performance.now();
 	for (const [index, action] of scenario.actions.entries()) {
 		if (token.isCancellationRequested) {
-			throw new vscode.CancellationError();
+			throw new CancellationError();
 		}
 		const startedAtMs = performance.now() - recordingStartedAt;
 		let activeLiveResizeCue: ResizeCue | undefined;
@@ -365,14 +365,14 @@ async function captureStopMotionResize(
 	frameRate: number,
 	outputDirectory: string,
 	recordingStartedAt: number,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 ): Promise<ResizeCue> {
 	const frameTotal = Math.max(2, Math.round(durationMs * frameRate / 1000));
 	const framePaths: string[] = [];
 	const frameSizes: Viewport[] = [];
 	for (let frame = 0; frame < frameTotal; frame += 1) {
 		if (token.isCancellationRequested) {
-			throw new vscode.CancellationError();
+			throw new CancellationError();
 		}
 		const progress = 0.5 - 0.5 * Math.cos(Math.PI * frame / (frameTotal - 1));
 		const size = {

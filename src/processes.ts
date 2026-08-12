@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
-import * as vscode from 'vscode';
+import { CancellationError, type CancellationToken } from './host';
 
 export async function findOpenPort(): Promise<number> {
 	return new Promise((resolve, reject) => {
@@ -22,7 +22,7 @@ export async function runShellCommand(
 	command: string,
 	cwd: string,
 	environment: NodeJS.ProcessEnv,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<void> {
 	const child = spawn(command, {
@@ -71,13 +71,13 @@ export class ManagedServer {
 
 export async function waitForUrl(
 	url: string,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	timeoutMs = 120_000,
 ): Promise<void> {
 	const startedAt = Date.now();
 	while (Date.now() - startedAt < timeoutMs) {
 		if (token.isCancellationRequested) {
-			throw new vscode.CancellationError();
+			throw new CancellationError();
 		}
 		try {
 			const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });

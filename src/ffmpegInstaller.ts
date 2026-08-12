@@ -5,7 +5,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream } from 'node:stream/web';
 import { createGunzip } from 'node:zlib';
-import * as vscode from 'vscode';
+import { CancellationError, hostConfiguration, type CancellationToken, type OutputSink } from './host';
 
 // Same static builds the ffmpeg-static npm package installs from.
 const DOWNLOAD_BASE_URL = 'https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1';
@@ -27,7 +27,7 @@ export function initializeFfmpegLocator(storageDir: string): void {
 }
 
 export async function resolveFfmpegPath(): Promise<string | undefined> {
-	const configured = vscode.workspace.getConfiguration('prUiCompare').get<string>('ffmpegPath');
+	const configured = hostConfiguration().ffmpegPath();
 	if (configured) {
 		if (!await isFile(configured)) {
 			throw new Error(`The prUiCompare.ffmpegPath setting points to "${configured}", which does not exist.`);
@@ -50,8 +50,8 @@ export async function resolveFfmpegPath(): Promise<string | undefined> {
 }
 
 export async function installFfmpeg(
-	output: vscode.OutputChannel,
-	token: vscode.CancellationToken,
+	output: OutputSink,
+	token: CancellationToken,
 ): Promise<string> {
 	const destination = installedFfmpegPath();
 	if (!destination) {
@@ -81,7 +81,7 @@ export async function installFfmpeg(
 		return destination;
 	} catch (error) {
 		if (token.isCancellationRequested) {
-			throw new vscode.CancellationError();
+			throw new CancellationError();
 		}
 		throw error;
 	} finally {

@@ -1,10 +1,10 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
+import { CancellationError, type CancellationToken, type OutputSink } from './host';
 
 export async function installManagedChromium(
-	output: vscode.OutputChannel,
-	token: vscode.CancellationToken,
+	output: OutputSink,
+	token: CancellationToken,
 ): Promise<void> {
 	const playwrightCli = path.join(path.dirname(require.resolve('playwright-core')), 'cli.js');
 	await new Promise<void>((resolve, reject) => {
@@ -22,7 +22,7 @@ export async function installManagedChromium(
 		child.once('exit', code => {
 			cancellation.dispose();
 			if (token.isCancellationRequested) {
-				reject(new vscode.CancellationError());
+				reject(new CancellationError());
 			} else if (code === 0) {
 				resolve();
 			} else {

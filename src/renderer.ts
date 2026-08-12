@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
 import { resolveFfmpegPath } from './ffmpegInstaller';
+import { CancellationError, type CancellationToken } from './host';
 import type {
 	ActionTiming,
 	CaptureRegion,
@@ -52,7 +52,7 @@ export async function renderComparisonImages(
 	afterLabelAlignment: LabelAlignment,
 	labelSize: number | undefined,
 	layoutPreference: ComparisonLayout,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<RenderedImages> {
 	const comparisonImagePath = path.join(outputDirectory, 'comparison.png');
@@ -120,7 +120,7 @@ export async function renderComparisonGif(
 	labelSize: number | undefined,
 	frameRate: number,
 	layoutPreference: ComparisonLayout,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<RenderedGifs> {
 	const comparisonGifPath = path.join(outputDirectory, 'comparison.gif');
@@ -191,7 +191,7 @@ export async function renderComparisonGif(
 
 async function runFfmpeg(
 	args: string[],
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<void> {
 	const executablePath = await resolveFfmpegPath();
@@ -214,7 +214,7 @@ async function runFfmpeg(
 		child.once('exit', code => {
 			cancellation.dispose();
 			if (token.isCancellationRequested) {
-				reject(new vscode.CancellationError());
+				reject(new CancellationError());
 			} else if (code === 0) {
 				resolve();
 			} else {
@@ -248,7 +248,7 @@ async function composeStopMotionTransitions(
 	frameRate: number,
 	borderColor: string,
 	outputDirectory: string,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 	onOutput: (text: string) => void,
 ): Promise<Map<number, string>> {
 	const transitions = new Map<number, string>();
@@ -293,7 +293,7 @@ const BEACON_CHROMA_FLOOR = 190;
 export async function detectSyncBeacon(
 	videoPath: string,
 	beaconAtMs: number,
-	token: vscode.CancellationToken,
+	token: CancellationToken,
 ): Promise<number | undefined> {
 	let report = '';
 	await runFfmpeg([
