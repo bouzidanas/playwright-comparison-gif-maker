@@ -138,6 +138,23 @@ http://127.0.0.1:{port}
 
 The manual wizard defaults to a two-second static recording. Agent usage is preferred for interaction scenarios.
 
+## MCP server
+
+The same engine runs outside VS Code as an MCP server, so clients such as Claude Code, Cursor, and Zed can create comparisons too. The server speaks stdio and exposes three tools: `create_comparison` (same schema as the VS Code tool), `install_browser`, and `install_ffmpeg`.
+
+```json
+{
+	"servers": {
+		"pr-ui-compare": {
+			"command": "npx",
+			"args": ["-y", "pr-ui-compare", "--workspace", "/path/to/your/repo"]
+		}
+	}
+}
+```
+
+Without `--workspace`, the server compares the repository at its working directory. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback. One difference from the extension: confirmation prompts belong to the MCP client, so the server runs the start and install commands it is given.
+
 ## Storage
 
 Raw captures, timing metadata, and rendered GIF or PNG files are written under VS Code workspace storage. They do not appear in Source Control. The preview exports the combined, Before, and After artifacts together.
@@ -165,21 +182,23 @@ npm run test:e2e
 npx vsce package
 ```
 
-`npm test` runs model and renderer tests in a VS Code extension host. `npm run test:e2e` additionally uses managed Chromium to run the complete Git worktree, server, Playwright, FFmpeg, metadata, and cleanup pipeline.
+`npm test` runs model and renderer tests in a VS Code extension host. `npm run test:e2e` additionally uses managed Chromium to run the complete Git worktree, server, Playwright, FFmpeg, metadata, and cleanup pipeline. `node scripts/mcp-e2e-smoke.js` drives the built MCP server against a fixture repository over stdio.
 
 Press `F5` to open an Extension Development Host.
 
 ## Architecture
 
-This is intentionally one repository and one extension package. The recording engine is split into internal modules so a CLI or MCP adapter can reuse it later without introducing a monorepo before there is a second shipped package.
+This is intentionally one repository and one package with two thin shells over one engine: the VS Code extension and the MCP server. The engine modules depend on a small host abstraction instead of the VS Code API.
 
 - `src/comparisonRunner.ts` coordinates sessions and cleanup.
 - `src/gitRepository.ts` resolves refs and manages detached worktrees.
 - `src/processes.ts` owns commands, servers, ports, and readiness checks.
 - `src/capture.ts` tracks focus bounds and records Playwright scenarios.
 - `src/renderer.ts` selects layout, crops recordings, adds labels, and creates GIFs.
+- `src/host.ts` defines the engine-facing host interfaces.
 - `src/previewPanel.ts` provides review and export inside VS Code.
-- `src/compareTool.ts` exposes the runner to agents.
+- `src/compareTool.ts` exposes the runner to agents in VS Code.
+- `src/mcpServer.ts` exposes the runner to MCP clients over stdio.
 - `skills/create-pr-ui-comparison/` teaches agents the pre-PR workflow.
 
 ## Security

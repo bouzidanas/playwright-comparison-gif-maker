@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- Added an MCP server so the same engine works outside VS Code. `npx pr-ui-compare` starts a stdio server exposing `create_comparison`, `install_browser`, and `install_ffmpeg`, with the tool schema shared with the extension. Artifacts go under `~/.pr-ui-compare`, configurable with `PR_UI_COMPARE_STORAGE_DIR`.
+- Decoupled the engine modules from the VS Code API behind a small host abstraction. Extension behavior is unchanged.
+
 ## [0.1.5] - 2026-08-12
 
 - Swapped the README demo GIF for a toolbar breakpoint recording and added a static PNG comparison example to the image mode explanation.

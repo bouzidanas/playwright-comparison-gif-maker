@@ -7,6 +7,7 @@ scripts/**
 *.vsix
 assets/demo-comparison.gif
 assets/demo-image-comparison.png
+dist/mcpServer.js
 .gitignore
 .yarnrc
 esbuild.js

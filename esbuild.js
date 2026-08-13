@@ -24,29 +24,42 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-	const ctx = await esbuild.context({
-		entryPoints: [
-			'src/extension.ts'
-		],
+	const shared = {
 		bundle: true,
 		format: 'cjs',
 		minify: production,
 		sourcemap: !production,
 		sourcesContent: false,
 		platform: 'node',
+		logLevel: 'silent',
+	};
+	const extensionCtx = await esbuild.context({
+		...shared,
+		entryPoints: [
+			'src/extension.ts'
+		],
 		outfile: 'dist/extension.js',
 		external: ['vscode', 'playwright-core'],
-		logLevel: 'silent',
 		plugins: [
 			/* add to the end of plugins array */
 			esbuildProblemMatcherPlugin,
 		],
 	});
+	// The MCP SDK is a devDependency bundled in, so the vsix and npm package need no extra deps.
+	const mcpCtx = await esbuild.context({
+		...shared,
+		entryPoints: [
+			'src/mcpServer.ts'
+		],
+		outfile: 'dist/mcpServer.js',
+		external: ['playwright-core'],
+		banner: { js: '#!/usr/bin/env node' },
+	});
 	if (watch) {
-		await ctx.watch();
+		await Promise.all([extensionCtx.watch(), mcpCtx.watch()]);
 	} else {
-		await ctx.rebuild();
-		await ctx.dispose();
+		await Promise.all([extensionCtx.rebuild(), mcpCtx.rebuild()]);
+		await Promise.all([extensionCtx.dispose(), mcpCtx.dispose()]);
 	}
 }
 
