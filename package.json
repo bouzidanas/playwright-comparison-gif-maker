@@ -52,11 +52,6 @@
   "bin": {
     "pr-ui-compare-mcp": "dist/mcpServer.js"
   },
-  "files": [
-    "dist/mcpServer.js",
-    "assets/NotoSans-Regular.ttf",
-    "assets/NotoSans-LICENSE.txt"
-  ],
   "contributes": {
     "commands": [
       {

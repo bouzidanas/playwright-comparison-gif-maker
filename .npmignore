@@ -1,0 +1,21 @@
+# vsce owns .vscodeignore and errors when package.json also has a files property, so the npm
+# tarball is shaped here instead: everything except the MCP server bundle and the label font.
+.github/
+.vscode/
+.vscode-test/
+.vscode-test.mjs
+.vscodeignore
+out/
+src/
+scripts/
+skills/
+instructions/
+esbuild.js
+eslint.config.mjs
+tsconfig.json
+*.vsix
+*.map
+dist/extension.js
+assets/*
+!assets/NotoSans-Regular.ttf
+!assets/NotoSans-LICENSE.txt
