@@ -52,6 +52,11 @@ export function resolveResizeMode(action: ScenarioAction & { type: 'resize' }): 
 export function describeResizeOutcomes(request: ComparisonRequest): string[] {
 	const outcomes: string[] = [];
 	let viewport = request.viewport ?? { width: 1280, height: 720 };
+	for (const action of request.scenario.setupActions ?? []) {
+		if (action.type === 'resize') {
+			viewport = { width: action.width, height: action.height };
+		}
+	}
 	for (const [index, action] of request.scenario.actions.entries()) {
 		if (action.type !== 'resize') {
 			continue;
@@ -92,8 +97,11 @@ export type ScenarioAction =
 	| { type: 'waitFor'; locator: string; state?: 'attached' | 'detached' | 'visible' | 'hidden'; timeoutMs?: number; holdAfterMs?: number }
 	| { type: 'hold'; durationMs: number };
 
+export type ScenarioSetupAction = Exclude<ScenarioAction, { type: 'zoom' }>;
+
 export interface ComparisonScenario {
 	name: string;
+	setupActions?: ScenarioSetupAction[];
 	actions: ScenarioAction[];
 }
 
@@ -160,6 +168,8 @@ export interface CaptureResult {
 	replayOffsetMs: number;
 	/** Capture-relative time when the sync beacon flashed, matched against the recorded video to find the true video time origin. */
 	beaconAtMs: number;
+	startViewport: Viewport;
+	startResizeMode: ResizeMode;
 	recordingSize: Viewport;
 	resizeCues: ResizeCue[];
 	zoomCues: ZoomCue[];
@@ -236,7 +246,13 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 			throw new Error('Frame rate must be an integer between 5 and 30 fps.');
 		}
 	}
-	request.scenario.actions.forEach((action, index) => validateAction(action, index));
+	request.scenario.setupActions?.forEach((action, index) => {
+		if ((action as ScenarioAction).type === 'zoom') {
+			throw new Error(`Scenario setup action ${index + 1} cannot use zoom because camera motion belongs in visible actions.`);
+		}
+		validateAction(action, index, 'Scenario setup action');
+	});
+	request.scenario.actions.forEach((action, index) => validateAction(action, index, 'Scenario action'));
 	if (request.focusPadding !== undefined && (!Number.isFinite(request.focusPadding) || request.focusPadding < 0 || request.focusPadding > 256)) {
 		throw new Error('Focus padding must be between 0 and 256 pixels.');
 	}
@@ -271,9 +287,9 @@ export function validateComparisonRequest(request: ComparisonRequest): void {
 	validateViewport(viewport, 'The viewport');
 }
 
-function validateAction(action: ScenarioAction, index: number): void {
+function validateAction(action: ScenarioAction, index: number, subject: string): void {
 	const invalid = (message: string): never => {
-		throw new Error(`Scenario action ${index + 1} ${message}`);
+		throw new Error(`${subject} ${index + 1} ${message}`);
 	};
 	if (!action || typeof action !== 'object' || typeof action.type !== 'string') {
 		invalid('must be an object with a type.');
@@ -307,7 +323,7 @@ function validateAction(action: ScenarioAction, index: number): void {
 			}
 			return;
 		case 'resize':
-			validateViewport(action, `Scenario action ${index + 1} resize`);
+			validateViewport(action, `${subject} ${index + 1} resize`);
 			const resizeAction = action as {
 				resizeMode?: ResizeMode;
 				movingEdge?: LegacyResizeMovingEdge;

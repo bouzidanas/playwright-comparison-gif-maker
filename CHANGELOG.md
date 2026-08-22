@@ -6,6 +6,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- Added optional `scenario.setupActions` for navigation, interactions, waits, and settling that must finish before an animated GIF begins. Setup replays on both sides before focus sampling and synchronization, and is omitted from the rendered timeline.
 - Added an MCP server so the same engine works outside VS Code. `npx pr-ui-compare` starts a stdio server exposing `create_comparison`, `install_browser`, and `install_ffmpeg`, with the tool schema shared with the extension. Artifacts go under `~/.pr-ui-compare`, configurable with `PR_UI_COMPARE_STORAGE_DIR`.
 - Decoupled the engine modules from the VS Code API behind a small host abstraction. Extension behavior is unchanged.
 

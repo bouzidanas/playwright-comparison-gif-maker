@@ -108,6 +108,10 @@ export async function renderComparisonGif(
 	afterTimings: ActionTiming[],
 	beforeReplayOffsetMs: number,
 	afterReplayOffsetMs: number,
+	beforeStartViewport: Viewport,
+	afterStartViewport: Viewport,
+	beforeStartResizeMode: ResizeCue['resizeMode'],
+	afterStartResizeMode: ResizeCue['resizeMode'],
 	beforeRecordingSize: Viewport,
 	afterRecordingSize: Viewport,
 	beforeResizeCues: ResizeCue[],
@@ -153,6 +157,10 @@ export async function renderComparisonGif(
 		afterTimings,
 		beforeReplayOffsetMs,
 		afterReplayOffsetMs,
+		beforeStartViewport,
+		afterStartViewport,
+		beforeStartResizeMode,
+		afterStartResizeMode,
 		beforeRecordingSize,
 		afterRecordingSize,
 		beforeResizeCues,
@@ -339,6 +347,10 @@ function createFilter(
 	afterTimings: ActionTiming[],
 	beforeReplayOffsetMs: number,
 	afterReplayOffsetMs: number,
+	beforeStartViewport: Viewport,
+	afterStartViewport: Viewport,
+	beforeStartResizeMode: ResizeCue['resizeMode'],
+	afterStartResizeMode: ResizeCue['resizeMode'],
 	beforeRecordingSize: Viewport,
 	afterRecordingSize: Viewport,
 	beforeResizeCues: ResizeCue[],
@@ -391,6 +403,8 @@ function createFilter(
 		targetDurations,
 		resizeDelayDurations,
 		resizeTransitionDurations,
+		beforeStartViewport,
+		beforeStartResizeMode,
 		beforeRegion,
 		beforeRecordingSize,
 		layout,
@@ -408,6 +422,8 @@ function createFilter(
 		targetDurations,
 		resizeDelayDurations,
 		resizeTransitionDurations,
+		afterStartViewport,
+		afterStartResizeMode,
 		afterRegion,
 		afterRecordingSize,
 		layout,
@@ -606,6 +622,8 @@ function synchronizeTimeline(
 	targetDurations: number[],
 	resizeDelayDurations: number[],
 	resizeTransitionDurations: number[],
+	startViewport: Viewport,
+	startResizeMode: ResizeCue['resizeMode'],
 	region: CaptureRegion | undefined,
 	recordingSize: Viewport,
 	layout: ResolvedComparisonLayout,
@@ -619,8 +637,8 @@ function synchronizeTimeline(
 	const geometry = resolvePaneGeometry(region, recordingSize, layout);
 	const resizeCueMap = new Map(resizeCues.map(cue => [cue.actionIndex, cue]));
 	const cues = new Map(zoomCues.map(cue => [cue.actionIndex, cue]));
-	let viewport = resizeCues[0]?.from ?? recordingSize;
-	let resizeMode: ResizeCue['resizeMode'] = 'keep-left-edge-fixed';
+	let viewport = startViewport;
+	let resizeMode = startResizeMode;
 	let camera: CameraState = {
 		scale: 1,
 		centerX: geometry.base.width / 2,
