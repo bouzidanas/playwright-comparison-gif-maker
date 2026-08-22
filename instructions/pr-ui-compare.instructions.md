@@ -15,6 +15,8 @@ Every resize action must explicitly set `resizeMode`. Match the user's requested
 
 Do not set `labelSize` unless the user explicitly requests a specific label size. Leave resize `captureStrategy` at its stop-motion default unless the user asks for real-time resize behavior or reports the transition differs from a real browser.
 
+The extension opens a preview panel with the finished comparison, so tell the user to review and export it there rather than only naming the artifact paths.
+
 Do not create, edit, delete, or generate files in the user's workspace. Do not write a JavaScript, TypeScript, Playwright, or shell helper script. Do not add tests, dependencies, configuration, screenshots, videos, or GIFs to the repository. The extension stores its generated artifacts outside the repository.
 
 If the PR UI Compare tool is unavailable or disabled, stop and tell the user to enable **Create PR UI Comparison** in the Chat tool picker and reload VS Code. Do not emulate the extension with file edits or terminal scripts.
