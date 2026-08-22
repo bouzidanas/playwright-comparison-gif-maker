@@ -1,7 +1,11 @@
 import * as assert from 'assert';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { getRecordingSize, INITIAL_POINTER_STYLE, resolvePlaywrightColorScheme } from '../capture';
 import { describeResizeOutcomes, expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
+import { readStoredSession } from '../sessionStorage';
 
 suite('Comparison model', () => {
 	const validRequest: ComparisonRequest = {
@@ -16,6 +20,45 @@ suite('Comparison model', () => {
 
 	test('accepts a complete request', () => {
 		assert.doesNotThrow(() => validateComparisonRequest(validRequest));
+	});
+
+	test('accepts hidden setup actions before an animation', () => {
+		assert.doesNotThrow(() => validateComparisonRequest({
+			...validRequest,
+			scenario: {
+				name: 'Menu fix after loading',
+				setupActions: [
+					{ type: 'click', locator: 'role=button[name="Load document"]' },
+					{ type: 'waitFor', locator: 'role=main', state: 'visible', holdAfterMs: 200 },
+				],
+				actions: [{ type: 'click', locator: 'role=button[name="Menu"]' }],
+			},
+		}));
+	});
+
+	test('validates setup actions separately from visible actions', () => {
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Invalid setup',
+					setupActions: [{ type: 'click', locator: '' }],
+					actions: [{ type: 'hold', durationMs: 200 }],
+				},
+			}),
+			/Scenario setup action 1 requires a locator/,
+		);
+		assert.throws(
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: {
+					name: 'Invalid setup camera',
+					setupActions: [{ type: 'zoom', locator: 'role=main' } as never],
+					actions: [{ type: 'hold', durationMs: 200 }],
+				},
+			}),
+			/cannot use zoom/,
+		);
 	});
 
 	test('maps browser color scheme modes to Playwright emulation', () => {
@@ -34,7 +77,10 @@ suite('Comparison model', () => {
 
 	test('rejects an empty scenario', () => {
 		assert.throws(
-			() => validateComparisonRequest({ ...validRequest, scenario: { name: 'Empty', actions: [] } }),
+			() => validateComparisonRequest({
+				...validRequest,
+				scenario: { name: 'Empty', setupActions: [{ type: 'hold', durationMs: 100 }], actions: [] },
+			}),
 			/at least one action/,
 		);
 	});
@@ -167,6 +213,9 @@ suite('Comparison model', () => {
 			viewport: { width: 1280, height: 720 },
 			scenario: {
 				name: 'Responsive behavior',
+				setupActions: [
+					{ type: 'resize', width: 1000, height: 700, resizeMode: 'keep-window-centered' },
+				],
 				actions: [
 					{ type: 'hold', durationMs: 300 },
 					{ type: 'resize', width: 390, height: 720, resizeMode: 'keep-right-edge-fixed' },
@@ -176,7 +225,7 @@ suite('Comparison model', () => {
 			},
 		};
 		assert.deepStrictEqual(describeResizeOutcomes(request), [
-			'Action 2 (resize, 1280 to 390 wide): the right edge stays fixed while the left edge slides right.',
+			'Action 2 (resize, 1000 to 390 wide): the right edge stays fixed while the left edge slides right; height grows from 700 to 720.',
 			'Action 3 (resize, 390 to 1280 wide): the left edge stays fixed while the right edge slides right; height shrinks from 720 to 640.',
 			'Action 4 (resize, 1280 to 640 wide): both edges move inward at the same rate and the window stays centered.',
 		]);
@@ -232,12 +281,15 @@ suite('Comparison model', () => {
 			{ width: 1280, height: 720 },
 			{
 				name: 'Responsive transition',
+				setupActions: [
+					{ type: 'resize', width: 1600, height: 900, resizeMode: 'keep-window-centered' },
+				],
 				actions: [
 					{ type: 'resize', width: 390, height: 844, resizeMode: 'keep-right-edge-fixed' },
 					{ type: 'resize', width: 1440, height: 640, resizeMode: 'keep-right-edge-fixed' },
 				],
 			},
-		), { width: 1440, height: 844 });
+		), { width: 1600, height: 900 });
 	});
 
 	test('expands every port placeholder', () => {
@@ -265,5 +317,27 @@ suite('Comparison model', () => {
 	test('honors an explicit layout override', () => {
 		const menuBar = { x: 0, y: 0, width: 1200, height: 80 };
 		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, menuBar, menuBar, 'horizontal'), 'horizontal');
+	});
+});
+
+suite('Stored sessions', () => {
+	// The URI handler rehydrates the preview panel from disk, so a session written by another
+	// process has to survive the round trip and a partial one has to be rejected.
+	test('reads a finished comparison back and rejects an unusable directory', async () => {
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-session-'));
+		try {
+			await assert.rejects(readStoredSession(directory), /No PR UI Compare session was found/);
+			await writeFile(path.join(directory, 'session.json'), JSON.stringify({ request: {}, result: {} }), 'utf8');
+			await assert.rejects(readStoredSession(directory), /is incomplete/);
+			await writeFile(path.join(directory, 'session.json'), JSON.stringify({
+				request: { scenario: { name: 'Panel comparison', actions: [] } },
+				result: { comparisonPath: path.join(directory, 'comparison.png'), outputMode: 'image' },
+			}), 'utf8');
+			const session = await readStoredSession(directory);
+			assert.strictEqual(session.request.scenario.name, 'Panel comparison');
+			assert.strictEqual(session.result.comparisonPath, path.join(directory, 'comparison.png'));
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 });

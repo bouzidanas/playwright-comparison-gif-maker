@@ -6,6 +6,18 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- MCP results now carry a downscaled still of the finished comparison, so clients that render images show it in the chat instead of only naming a path.
+- An MCP client running inside a VS Code window now opens the extension's preview panel on the finished comparison through a `vscode://bouzidanas.pr-ui-compare/preview` link, giving Claude Code and Codex the same reviewer and export actions the VS Code tool opens. `PR_UI_COMPARE_IDE_PREVIEW` and `PR_UI_COMPARE_URI_SCHEME` control and retarget it.
+- FFmpeg errors now quote a host-appropriate installation hint, matching the browser hint.
+
+- Made the MCP server usable from a single configuration across repositories. `create_comparison` accepts an optional `workspacePath`, `PR_UI_COMPARE_WORKSPACE` sets a default, and `--workspace` still wins.
+- The MCP server now returns server instructions at initialization, so clients that read that field, such as Claude Code and Codex, get the guidance the extension contributes to VS Code chat as skills and instructions.
+- The MCP server now sends progress notifications for calls that carry a progress token, so a multi-minute comparison reports its stage instead of looking idle.
+- Trimmed the tool description to 1929 bytes and kept the server instructions under 2KB, because Claude Code truncates both at 2KB.
+- Browser launch failures now quote a host-appropriate installation hint instead of naming a VS Code command in every client.
+- Added `npm run test:mcp` for the MCP stdio smoke test, which now covers `workspacePath` and progress notifications.
+
+- Added optional `scenario.setupActions` for navigation, interactions, waits, and settling that must finish before an animated GIF begins. Setup replays on both sides before focus sampling and synchronization, and is omitted from the rendered timeline.
 - Added an MCP server so the same engine works outside VS Code. `npx pr-ui-compare` starts a stdio server exposing `create_comparison`, `install_browser`, and `install_ffmpeg`, with the tool schema shared with the extension. Artifacts go under `~/.pr-ui-compare`, configurable with `PR_UI_COMPARE_STORAGE_DIR`.
 - Decoupled the engine modules from the VS Code API behind a small host abstraction. Extension behavior is unchanged.
 
