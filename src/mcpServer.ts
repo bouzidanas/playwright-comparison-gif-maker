@@ -66,7 +66,7 @@ function comparisonInputSchema(): Record<string, unknown> {
 			...schema.properties,
 			workspacePath: {
 				type: 'string',
-				description: 'Absolute path to the Git repository to compare. Defaults to the workspace the server was started in. Pass it when one server serves several repositories.',
+				description: 'Absolute path to the Git repository to compare. Defaults to the directory the server was started in, which is often not the project when the server is configured globally, as it is for Codex, so pass the repository root whenever you know it.',
 			},
 		},
 	};
