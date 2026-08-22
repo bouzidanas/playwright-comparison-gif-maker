@@ -45,7 +45,9 @@
     },
     "virtualWorkspaces": false
   },
-  "activationEvents": [],
+  "activationEvents": [
+    "onUri"
+  ],
   "main": "./dist/extension.js",
   "bin": {
     "pr-ui-compare-mcp": "dist/mcpServer.js"

@@ -1,7 +1,11 @@
 import * as assert from 'assert';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { getRecordingSize, INITIAL_POINTER_STYLE, resolvePlaywrightColorScheme } from '../capture';
 import { describeResizeOutcomes, expandPortTemplate, validateComparisonRequest, type ComparisonRequest } from '../model';
 import { resolveComparisonLayout } from '../renderer';
+import { readStoredSession } from '../sessionStorage';
 
 suite('Comparison model', () => {
 	const validRequest: ComparisonRequest = {
@@ -313,5 +317,27 @@ suite('Comparison model', () => {
 	test('honors an explicit layout override', () => {
 		const menuBar = { x: 0, y: 0, width: 1200, height: 80 };
 		assert.strictEqual(resolveComparisonLayout({ width: 1280, height: 720 }, menuBar, menuBar, 'horizontal'), 'horizontal');
+	});
+});
+
+suite('Stored sessions', () => {
+	// The URI handler rehydrates the preview panel from disk, so a session written by another
+	// process has to survive the round trip and a partial one has to be rejected.
+	test('reads a finished comparison back and rejects an unusable directory', async () => {
+		const directory = await mkdtemp(path.join(os.tmpdir(), 'pr-ui-compare-session-'));
+		try {
+			await assert.rejects(readStoredSession(directory), /No PR UI Compare session was found/);
+			await writeFile(path.join(directory, 'session.json'), JSON.stringify({ request: {}, result: {} }), 'utf8');
+			await assert.rejects(readStoredSession(directory), /is incomplete/);
+			await writeFile(path.join(directory, 'session.json'), JSON.stringify({
+				request: { scenario: { name: 'Panel comparison', actions: [] } },
+				result: { comparisonPath: path.join(directory, 'comparison.png'), outputMode: 'image' },
+			}), 'utf8');
+			const session = await readStoredSession(directory);
+			assert.strictEqual(session.request.scenario.name, 'Panel comparison');
+			assert.strictEqual(session.result.comparisonPath, path.join(directory, 'comparison.png'));
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 });

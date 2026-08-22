@@ -9,7 +9,7 @@ import { CancellationError, setHostConfiguration } from './host';
 import { GitRepository } from './gitRepository';
 import type { ComparisonRequest, ComparisonResult, ScenarioAction } from './model';
 import { showComparisonResult } from './previewPanel';
-import { cleanupExpiredSessions } from './sessionStorage';
+import { cleanupExpiredSessions, readStoredSession } from './sessionStorage';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const output = vscode.window.createOutputChannel('PR UI Compare', { log: true });
@@ -19,6 +19,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		allowSystemBrowser: () => vscode.workspace.getConfiguration('prUiCompare').get<boolean>('allowSystemBrowser', false),
 		ffmpegPath: () => vscode.workspace.getConfiguration('prUiCompare').get<string>('ffmpegPath') || undefined,
 		browserInstallHint: () => 'Run "PR UI Compare: Install Managed Chromium" and retry.',
+		ffmpegInstallHint: () => 'Run the "PR UI Compare: Install FFmpeg" command, or set prUiCompare.ffmpegPath to an existing FFmpeg executable.',
 	});
 	const storageRoot = (context.storageUri ?? context.globalStorageUri).fsPath;
 	const runner = new ComparisonRunner(storageRoot, output);
@@ -67,7 +68,27 @@ export function activate(context: vscode.ExtensionContext): void {
 			}
 		}),
 		vscode.lm.registerTool('pr-ui-compare_createComparison', new CreateComparisonTool(execute)),
+		// The MCP server runs outside VS Code and cannot open a webview, so it asks this window to.
+		vscode.window.registerUriHandler({
+			handleUri: uri => openSessionPreview(uri).catch(async error => {
+				output.error(`Could not open the requested preview: ${String(error)}`);
+				await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+			}),
+		}),
 	);
+}
+
+async function openSessionPreview(uri: vscode.Uri): Promise<void> {
+	if (uri.path !== '/preview') {
+		throw new Error(`PR UI Compare cannot handle the URI path "${uri.path}".`);
+	}
+	const sessionDirectory = new URLSearchParams(uri.query).get('session');
+	if (!sessionDirectory) {
+		throw new Error('The preview link carries no comparison session.');
+	}
+	const session = await readStoredSession(sessionDirectory);
+	await access(session.result.comparisonPath);
+	await showComparisonResult(session.result, session.request);
 }
 
 // The engine throws its own CancellationError; VS Code only treats its own class as a cancel.

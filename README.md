@@ -198,7 +198,9 @@ The server compares the repository at its working directory. Pass `--workspace /
 
 Run the `install_browser` and `install_ffmpeg` tools once before the first comparison unless managed Chromium and FFmpeg are already present. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback.
 
-Two differences from the extension: confirmation belongs to the MCP client, so the server runs the start and install commands it is given, and there is no preview panel, so the result carries artifact paths instead. Long calls report progress, which clients display and use to keep the call from looking idle.
+Every result carries a downscaled still of the comparison, which clients that render images show inline in the chat, alongside the full-resolution paths. When the MCP client runs inside a VS Code window and the extension is installed, the server also asks that window to open the same preview panel the VS Code tool opens, with its review and export actions. Set `PR_UI_COMPARE_IDE_PREVIEW=0` to stop that, `=1` to force it where VS Code is not detected, and `PR_UI_COMPARE_URI_SCHEME` to target a fork, such as `cursor`.
+
+The remaining difference from the extension is confirmation, which belongs to the MCP client, so the server runs the start and install commands it is given. Long calls report progress, which clients display and use to keep the call from looking idle.
 
 ## Storage
 

@@ -103,13 +103,18 @@ http.createServer((_request, response) => {
 		if (call.result?.isError) {
 			throw new Error(`create_comparison failed: ${text}`);
 		}
-		const summary = JSON.parse(text.slice(text.indexOf('{')));
+		const summary = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1));
 		await stat(summary.comparisonPath);
 		await stat(summary.beforePath);
 		await stat(summary.afterPath);
 		if (!summary.comparisonPath.startsWith(storagePath)) {
 			throw new Error(`Artifacts landed outside the storage dir: ${summary.comparisonPath}`);
 		}
+		const image = (call.result?.content ?? []).find(part => part.type === 'image');
+		if (!image || !image.data || image.mimeType !== 'image/png') {
+			throw new Error('The result carried no inline PNG preview.');
+		}
+		console.log(`Inline preview: ${Math.round(Buffer.byteLength(image.data) / 1024)}KB of base64 PNG`);
 		if (progressCount === 0) {
 			throw new Error('The server sent no progress notifications for a call carrying a progress token.');
 		}

@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+- MCP results now carry a downscaled still of the finished comparison, so clients that render images show it in the chat instead of only naming a path.
+- An MCP client running inside a VS Code window now opens the extension's preview panel on the finished comparison through a `vscode://bouzidanas.pr-ui-compare/preview` link, giving Claude Code and Codex the same reviewer and export actions the VS Code tool opens. `PR_UI_COMPARE_IDE_PREVIEW` and `PR_UI_COMPARE_URI_SCHEME` control and retarget it.
+- FFmpeg errors now quote a host-appropriate installation hint, matching the browser hint.
+
 - Made the MCP server usable from a single configuration across repositories. `create_comparison` accepts an optional `workspacePath`, `PR_UI_COMPARE_WORKSPACE` sets a default, and `--workspace` still wins.
 - The MCP server now returns server instructions at initialization, so clients that read that field, such as Claude Code and Codex, get the guidance the extension contributes to VS Code chat as skills and instructions.
 - The MCP server now sends progress notifications for calls that carry a progress token, so a multi-minute comparison reports its stage instead of looking idle.

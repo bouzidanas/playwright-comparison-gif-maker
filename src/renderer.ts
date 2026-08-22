@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import { resolveFfmpegPath } from './ffmpegInstaller';
-import { CancellationError, type CancellationToken } from './host';
+import { CancellationError, hostConfiguration, type CancellationToken } from './host';
 import type {
 	ActionTiming,
 	CaptureRegion,
@@ -204,7 +204,7 @@ async function runFfmpeg(
 ): Promise<void> {
 	const executablePath = await resolveFfmpegPath();
 	if (!executablePath) {
-		throw new Error('FFmpeg was not found. Run the "PR UI Compare: Install FFmpeg" command, or set prUiCompare.ffmpegPath to an existing FFmpeg executable.');
+		throw new Error(`FFmpeg was not found. ${hostConfiguration().ffmpegInstallHint()}`);
 	}
 	await new Promise<void>((resolve, reject) => {
 		let encoderOutput = '';
@@ -1042,4 +1042,30 @@ function escapeDrawText(value: string): string {
 		.replaceAll("'", "\\'")
 		.replaceAll(':', '\\:')
 		.replaceAll('%', '\\%');
+}
+/**
+ * Writes a downscaled still of a finished comparison for chat clients that render images inline.
+ * Animated output is sampled at the end, where the scenario has settled, and falls back to the
+ * first frame for recordings too short to seek from the end.
+ */
+export async function renderPreviewStill(
+	sourcePath: string,
+	destinationPath: string,
+	maxWidth: number,
+	token: CancellationToken,
+	onOutput: (text: string) => void,
+): Promise<void> {
+	const scale = ['-frames:v', '1', '-update', '1', '-vf', `scale='min(${maxWidth},iw)':-2:flags=lanczos`, destinationPath];
+	if (!sourcePath.endsWith('.gif')) {
+		await runFfmpeg(['-y', '-i', sourcePath, ...scale], token, onOutput);
+		return;
+	}
+	try {
+		await runFfmpeg(['-y', '-sseof', '-0.2', '-i', sourcePath, ...scale], token, onOutput);
+	} catch (error) {
+		if (error instanceof CancellationError) {
+			throw error;
+		}
+		await runFfmpeg(['-y', '-i', sourcePath, ...scale], token, onOutput);
+	}
 }
