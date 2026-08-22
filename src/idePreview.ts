@@ -1,12 +1,41 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import type { OutputSink } from './host';
 
 const EXTENSION_ID = 'bouzidanas.pr-ui-compare';
 
-// Only a process started by a VS Code window inherits these, so a plain terminal session never
-// launches an editor it was not already running inside.
+// A process started by a VS Code window inherits these, so a plain terminal session never launches
+// an editor it was not already running inside.
 function insideVsCodeWindow(): boolean {
-	return Boolean(process.env.VSCODE_PID || process.env.VSCODE_IPC_HOOK || process.env.VSCODE_IPC_HOOK_CLI);
+	if (process.env.VSCODE_PID || process.env.VSCODE_IPC_HOOK || process.env.VSCODE_IPC_HOOK_CLI) {
+		return true;
+	}
+	return hasExtensionHostAncestor();
+}
+
+/**
+ * Codex hands MCP servers a scrubbed environment, so the VS Code variables never arrive even when
+ * the editor started everything. The process tree still shows it: VS Code and its forks run
+ * extensions in a helper process named "<Editor> Helper (Plugin)". Windows has no ps, and its
+ * clients pass the environment through, so the environment check stands alone there.
+ */
+function hasExtensionHostAncestor(): boolean {
+	if (process.platform === 'win32') {
+		return false;
+	}
+	let pid = process.ppid;
+	for (let depth = 0; depth < 8 && pid > 1; depth += 1) {
+		const inspected = spawnSync('ps', ['-o', 'ppid=,comm=', '-p', String(pid)], { encoding: 'utf8' });
+		const line = inspected.status === 0 ? inspected.stdout.trim() : '';
+		const parsed = /^\s*(\d+)\s+(.*)$/.exec(line);
+		if (!parsed) {
+			return false;
+		}
+		if (/helper \(plugin\)/i.test(parsed[2])) {
+			return true;
+		}
+		pid = Number(parsed[1]);
+	}
+	return false;
 }
 
 function opener(uri: string): { command: string; args: string[] } {
