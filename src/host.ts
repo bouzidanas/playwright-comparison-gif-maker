@@ -21,11 +21,14 @@ export interface OutputSink {
 export interface HostConfiguration {
 	allowSystemBrowser(): boolean;
 	ffmpegPath(): string | undefined;
+	/** How this host tells the user to install managed Chromium, quoted in launch failures. */
+	browserInstallHint(): string;
 }
 
 let configuration: HostConfiguration = {
 	allowSystemBrowser: () => false,
 	ffmpegPath: () => undefined,
+	browserInstallHint: () => 'Install managed Chromium and retry.',
 };
 
 export function setHostConfiguration(value: HostConfiguration): void {

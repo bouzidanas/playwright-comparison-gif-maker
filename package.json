@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Generate synchronized Before and After UI GIFs and images for pull requests with Playwright.",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "author": "Anas Bouzid",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -80,7 +80,7 @@
       {
         "name": "pr-ui-compare_createComparison",
         "displayName": "Create PR UI Comparison",
-        "modelDescription": "Records the running application and produces GIF or PNG files that show a labeled Before and After side by side. Use this tool only when the user wants a visual artifact to look at or share, such as a GIF, a screenshot, a Before and After image, or a recorded demonstration of a UI fix. Do not use it to compare code, read a diff, summarize what changed against a branch or ref, review a pull request, or verify that a fix works. A request such as compare my fix on this branch to main is a code comparison and must be answered by reading the code, not by running this tool, unless the user asks for a GIF, images, screenshots, or something visual to look at. When it is unclear whether the user wants generated media, ask before running the tool. Animation is the default and must be used whenever the change the user needs to see is itself motion, including any event, interaction, hover, transition, loading sequence, resize, zoom, scroll, opening, closing, or state mutation. Use scenario.setupActions for clicks, navigation, waits, holds, or other page preparation that must finish before an animated GIF begins. Setup actions replay identically in both versions before synchronization and are omitted from the GIF. Set outputMode to image when the subject is a settled state that holds still, even when reaching that state requires interactions. In image mode the actions are setup steps rather than the subject: they replay identically in both versions and a single PNG captures the settled final state, so any element in any reachable app state can be compared as a still. When uncertain between the two output modes, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, stores artifacts outside the repository, and opens a preview. It creates and modifies no files in the user's repository. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable. The start and optional install commands execute project code and require user confirmation.",
+        "modelDescription": "Records the running application and produces GIF or PNG files that show a labeled Before and After side by side. Use this tool only when the user wants a visual artifact to look at or share, such as a GIF, a screenshot, a Before and After image, or a recorded demonstration of a UI fix. Do not use it to compare code, read a diff, summarize what changed against a branch or ref, review a pull request, or verify that a fix works. A request such as compare my fix on this branch to main is a code comparison and must be answered by reading the code, not by running this tool, unless the user asks for a GIF, images, screenshots, or something visual to look at. When it is unclear whether the user wants generated media, ask before running the tool. Animation is the default and must be used whenever the change the user needs to see is itself motion, including any interaction, hover, transition, loading sequence, resize, zoom, scroll, or state mutation. Use scenario.setupActions for page preparation that must finish before an animated GIF begins; it replays in both versions and is omitted from the GIF. Set outputMode to image when the subject is a settled state that holds still, even when reaching that state requires interactions. In image mode the actions are setup steps rather than the subject: they replay in both versions and a single PNG captures the settled final state, so any reachable app state can be compared as a still. When uncertain between the two output modes, always choose animation. The tool resolves a baseline Git ref into a detached worktree, starts both applications sequentially, and stores artifacts outside the repository. It creates and modifies no files in the user's repository, and it runs the start and install commands it is given. Never write a JavaScript, TypeScript, Playwright, or shell helper script. Border color, color scheme, layout, focus crop, and label corners are configurable.",
         "userDescription": "Generate Before and After GIFs or PNGs of the running app when you want visual evidence of a UI change.",
         "canBeReferencedInPrompt": true,
         "toolReferenceName": "createPrUiComparison",
@@ -506,6 +506,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
+    "prepublishOnly": "npm run package",
     "compile": "npm run check-types && npm run lint && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
@@ -520,6 +521,7 @@
     "test:e2e": "npm run compile-tests && npm run compile && npm run lint && npm-run-all -s test:e2e:animation test:e2e:image",
     "test:e2e:animation": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"records and renders a dirty working tree\" --timeout 180000",
     "test:e2e:image": "cross-env PR_UI_COMPARE_E2E=1 vscode-test --grep \"captures and composes final-state PNG images\" --timeout 180000",
+    "test:mcp": "node esbuild.js && node scripts/mcp-e2e-smoke.js",
     "check": "npm run compile && npm test"
   },
   "devDependencies": {

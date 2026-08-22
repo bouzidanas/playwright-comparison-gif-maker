@@ -38,11 +38,13 @@ http.createServer((_request, response) => {
 		await execFileAsync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-m', 'before'], { cwd: repositoryPath });
 		await writeFile(path.join(repositoryPath, 'index.html'), fixtureHtml('#2e7d5b'), 'utf8');
 
-		const child = spawn('node', [path.join(__dirname, '..', 'dist', 'mcpServer.js'), '--workspace', repositoryPath], {
+		// No --workspace: the fixture repository is addressed per call through workspacePath.
+		const child = spawn('node', [path.join(__dirname, '..', 'dist', 'mcpServer.js')], {
 			env: { ...process.env, PR_UI_COMPARE_STORAGE_DIR: storagePath },
 		});
 		child.stderr.on('data', d => process.stderr.write(d));
 		let buffer = '';
+		let progressCount = 0;
 		const pending = new Map();
 		child.stdout.on('data', d => {
 			buffer += d;
@@ -52,6 +54,10 @@ http.createServer((_request, response) => {
 				buffer = buffer.slice(idx + 1);
 				if (!line.trim()) { continue; }
 				const message = JSON.parse(line);
+				if (message.method === 'notifications/progress') {
+					progressCount += 1;
+					continue;
+				}
 				if (message.id !== undefined && pending.has(message.id)) {
 					pending.get(message.id)(message);
 					pending.delete(message.id);
@@ -82,7 +88,9 @@ http.createServer((_request, response) => {
 
 		const call = await request('tools/call', {
 			name: 'create_comparison',
+			_meta: { progressToken: 'smoke-progress' },
 			arguments: {
+				workspacePath: repositoryPath,
 				outputMode: 'image',
 				baseRef: 'HEAD',
 				startCommand: 'node server.js {port}',
@@ -102,7 +110,10 @@ http.createServer((_request, response) => {
 		if (!summary.comparisonPath.startsWith(storagePath)) {
 			throw new Error(`Artifacts landed outside the storage dir: ${summary.comparisonPath}`);
 		}
-		console.log('MCP e2e smoke passed:', summary.comparisonPath);
+		if (progressCount === 0) {
+			throw new Error('The server sent no progress notifications for a call carrying a progress token.');
+		}
+		console.log(`MCP e2e smoke passed with ${progressCount} progress notifications:`, summary.comparisonPath);
 	} finally {
 		await rm(repositoryPath, { recursive: true, force: true });
 		await rm(storagePath, { recursive: true, force: true });

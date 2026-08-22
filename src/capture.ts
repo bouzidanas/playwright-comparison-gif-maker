@@ -162,8 +162,8 @@ async function launchBrowser(): Promise<Browser> {
 	const allowSystemBrowser = hostConfiguration().allowSystemBrowser();
 	if (!allowSystemBrowser) {
 		throw new Error(
-			'No managed Chromium installation was found. Run "PR UI Compare: Install Managed Chromium" and retry. ' +
-			'System browsers are disabled by default so VS Code does not launch an application from the system Applications folder.\n' +
+			`No managed Chromium installation was found. ${hostConfiguration().browserInstallHint()} ` +
+			'System browsers are disabled by default so no application is launched from the system Applications folder.\n' +
 			failures.join('\n'),
 		);
 	}

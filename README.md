@@ -159,20 +159,46 @@ The manual wizard defaults to a two-second static recording. Agent usage is pref
 
 ## MCP server
 
-The same engine runs outside VS Code as an MCP server, so clients such as Claude Code, Cursor, and Zed can create comparisons too. The server speaks stdio and exposes three tools: `create_comparison` (same schema as the VS Code tool), `install_browser`, and `install_ffmpeg`.
+The same engine runs outside VS Code as an MCP server, so Claude Code, Codex, Cursor, and Zed can create comparisons too. The server speaks stdio and exposes three tools: `create_comparison` (the schema the VS Code tool uses), `install_browser`, and `install_ffmpeg`. It also returns server instructions at initialization, so clients that read that field get the guidance the extension contributes to VS Code chat.
+
+Claude Code:
+
+```sh
+claude mcp add pr-ui-compare -- npx -y pr-ui-compare
+```
+
+Add `--scope project` to write a shared `.mcp.json` at the repository root instead of your own configuration.
+
+Codex, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.pr-ui-compare]
+command = "npx"
+args = ["-y", "pr-ui-compare"]
+startup_timeout_sec = 60
+tool_timeout_sec = 1800
+```
+
+Raise `tool_timeout_sec`. Codex cancels a tool call after 60 seconds by default, and a comparison starts and records two applications, so it needs minutes.
+
+VS Code, Cursor, and Zed:
 
 ```json
 {
 	"servers": {
 		"pr-ui-compare": {
 			"command": "npx",
-			"args": ["-y", "pr-ui-compare", "--workspace", "/path/to/your/repo"]
+			"args": ["-y", "pr-ui-compare"]
 		}
 	}
 }
 ```
 
-Without `--workspace`, the server compares the repository at its working directory. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback. One difference from the extension: confirmation prompts belong to the MCP client, so the server runs the start and install commands it is given.
+The server compares the repository at its working directory. Pass `--workspace /path/to/repo`, set `PR_UI_COMPARE_WORKSPACE`, or send `workspacePath` with an individual `create_comparison` call when one server configuration serves several repositories.
+
+Run the `install_browser` and `install_ffmpeg` tools once before the first comparison unless managed Chromium and FFmpeg are already present. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback.
+
+Two differences from the extension: confirmation belongs to the MCP client, so the server runs the start and install commands it is given, and there is no preview panel, so the result carries artifact paths instead. Long calls report progress, which clients display and use to keep the call from looking idle.
 
 ## Storage
 

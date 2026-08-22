@@ -18,6 +18,7 @@ export function activate(context: vscode.ExtensionContext): void {
 	setHostConfiguration({
 		allowSystemBrowser: () => vscode.workspace.getConfiguration('prUiCompare').get<boolean>('allowSystemBrowser', false),
 		ffmpegPath: () => vscode.workspace.getConfiguration('prUiCompare').get<string>('ffmpegPath') || undefined,
+		browserInstallHint: () => 'Run "PR UI Compare: Install Managed Chromium" and retry.',
 	});
 	const storageRoot = (context.storageUri ?? context.globalStorageUri).fsPath;
 	const runner = new ComparisonRunner(storageRoot, output);
