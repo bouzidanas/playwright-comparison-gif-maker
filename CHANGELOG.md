@@ -4,6 +4,11 @@ All notable changes to the "pr-ui-compare" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.2] - 2026-09-23
+
+- The Claude Code setup line now passes `--scope user`, so the server is registered for every repository rather than for whichever one happened to be open. `claude mcp add` defaults to local scope, and the note under the command described that default as your own configuration, which reads as global, so following the README left the tool apparently missing everywhere else. The editor JSON carries the same warning, and clients are told to restart after adding the server.
+- The MCP section now states that `install_browser` and `install_ffmpeg` download about 240MB once per machine rather than once per repository, and that a machine already holding the matching Playwright version downloads no browser at all.
+
 ## [0.2.1] - 2026-09-23
 
 - Installing managed Chromium no longer deletes browsers it did not download. Playwright's installer garbage-collects every cached build that no registered installation claims, and the cache is machine-global, so an install could remove browsers belonging to unrelated projects, which then failed with a missing executable and no connection to the tool that caused it.
