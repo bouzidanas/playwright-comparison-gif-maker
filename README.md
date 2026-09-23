@@ -65,6 +65,25 @@ The agent picks the tool up from the request. It does not need the extension nam
 
 The agent sets `outputMode` to `image` for an explicit static request or when the subject is a settled state that holds still. Image mode accepts scenario actions, and they run as setup rather than as the subject. Both versions replay the same actions, then a single PNG captures the settled final state, so a panel that only appears after loading a document or opening an editor can still be compared as a still image. Use animation when the change the user needs to see is the motion itself, such as a transition, loading sequence, resize, zoom, or scroll. When the request is ambiguous, animation is always the default. The synthetic pointer is not drawn in static images.
 
+Animated scenarios can use `setupActions` to reach the exact state where recording should begin. Setup actions run after the initial route reaches `networkidle`, but before focus-region sampling, the synchronization beacon, and the visible `actions` timeline. They replay identically in both versions and are omitted from the rendered GIF. Use explicit `waitFor` actions for application state because `networkidle` does not guarantee that delayed rendering, background data, or animations have settled, then add a short `hold` when the final setup state needs a fixed settling period.
+
+```json
+{
+	"name": "Editor menu transition",
+	"setupActions": [
+		{ "type": "click", "locator": "role=button[name=\"Load document\"]" },
+		{ "type": "waitFor", "locator": "text=Loading", "state": "hidden" },
+		{ "type": "waitFor", "locator": "role=main", "state": "visible" },
+		{ "type": "hold", "durationMs": 300 }
+	],
+	"actions": [
+		{ "type": "click", "locator": "role=button[name=\"More actions\"]", "holdAfterMs": 1000 }
+	]
+}
+```
+
+Setup supports page actions such as navigation, clicks, input, scrolling, resizing, waits, and holds. Camera `zoom` belongs in visible `actions`. Animation still requires at least one visible action so the GIF has a nonempty timeline.
+
 ![A static PNG comparison of a focused UI region in both versions](assets/demo-image-comparison.png)
 
 Animated GIF frame rate is configurable from 5 to 30 fps and defaults to 24. Use 30 fps for fast visual events, short transitions, or detailed camera movement. Lower rates reduce file size for slow and simple motion. Static image mode does not accept frame rate.
@@ -87,7 +106,7 @@ The workflow does not create or modify files in the target repository. Agents sh
 
 Set `focusLocator` for a stable region such as `role=navigation`, `data-testid=menu-bar`, or `#settings-panel`. Auto layout remains side by side for ordinary desktop and mobile captures. A region such as a full-width menu bar switches to top and bottom only when its aspect ratio is greater than 3:1. An exact 3:1 region remains side by side.
 
-Supported actions are `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
+Visible actions support `goto`, `click`, `hover`, `fill`, `press`, `scroll`, `resize`, `zoom`, `waitFor`, and `hold`. Use locator strings such as `role=button[name="Menu"]`, `text=Settings`, and `data-testid=profile-panel`.
 
 Zoom is a recording-camera effect and does not change page layout, browser zoom, or interaction coordinates. It smoothly moves toward a target element and remains active for following actions until another zoom changes it. Use scale `1` without a locator to return to the full frame:
 
@@ -140,20 +159,48 @@ The manual wizard defaults to a two-second static recording. Agent usage is pref
 
 ## MCP server
 
-The same engine runs outside VS Code as an MCP server, so clients such as Claude Code, Cursor, and Zed can create comparisons too. The server speaks stdio and exposes three tools: `create_comparison` (same schema as the VS Code tool), `install_browser`, and `install_ffmpeg`.
+The same engine runs outside VS Code as an MCP server, so Claude Code, Codex, Cursor, and Zed can create comparisons too. The server speaks stdio and exposes three tools: `create_comparison` (the schema the VS Code tool uses), `install_browser`, and `install_ffmpeg`. It also returns server instructions at initialization, so clients that read that field get the guidance the extension contributes to VS Code chat.
+
+Claude Code:
+
+```sh
+claude mcp add pr-ui-compare -- npx -y pr-ui-compare
+```
+
+Add `--scope project` to write a shared `.mcp.json` at the repository root instead of your own configuration.
+
+Codex, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.pr-ui-compare]
+command = "npx"
+args = ["-y", "pr-ui-compare"]
+startup_timeout_sec = 60
+tool_timeout_sec = 1800
+```
+
+Raise `tool_timeout_sec`. Codex cancels a tool call after 60 seconds by default, and a comparison starts and records two applications, so it needs minutes.
+
+VS Code, Cursor, and Zed:
 
 ```json
 {
 	"servers": {
 		"pr-ui-compare": {
 			"command": "npx",
-			"args": ["-y", "pr-ui-compare", "--workspace", "/path/to/your/repo"]
+			"args": ["-y", "pr-ui-compare"]
 		}
 	}
 }
 ```
 
-Without `--workspace`, the server compares the repository at its working directory. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback. One difference from the extension: confirmation prompts belong to the MCP client, so the server runs the start and install commands it is given.
+The server compares the repository at its working directory. Pass `--workspace /path/to/repo`, set `PR_UI_COMPARE_WORKSPACE`, or send `workspacePath` with an individual `create_comparison` call when one server configuration serves several repositories.
+
+Run the `install_browser` and `install_ffmpeg` tools once before the first comparison unless managed Chromium and FFmpeg are already present. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback.
+
+Every result carries a downscaled still of the comparison, which clients that render images show inline in the chat, alongside the full-resolution paths. When the MCP client runs inside a VS Code window and the extension is installed, the server also asks that window to open the same preview panel the VS Code tool opens, with its review and export actions. Set `PR_UI_COMPARE_IDE_PREVIEW=0` to stop that, `=1` to force it where VS Code is not detected, and `PR_UI_COMPARE_URI_SCHEME` to target a fork, such as `cursor`.
+
+The remaining difference from the extension is confirmation, which belongs to the MCP client, so the server runs the start and install commands it is given. Long calls report progress, which clients display and use to keep the call from looking idle.
 
 ## Storage
 

@@ -38,6 +38,10 @@ suite('Comparison runner end to end', function () {
 				viewport: { width: 640, height: 480 },
 				scenario: {
 					name: 'Responsive panel fix',
+					setupActions: [
+						{ type: 'click', locator: 'role=button[name="Toggle panel"]' },
+						{ type: 'waitFor', locator: '#panel.open', state: 'visible', holdAfterMs: 200 },
+					],
 					actions: [
 						{ type: 'hold', durationMs: 300 },
 						{ type: 'resize', width: 360, height: 480, resizeMode: 'keep-right-edge-fixed', durationMs: 500, holdAfterMs: 300 },

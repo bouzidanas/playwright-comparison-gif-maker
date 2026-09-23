@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { chromium, type Browser, type Locator, type Page } from 'playwright-core';
 import { CancellationError, hostConfiguration, type CancellationToken } from './host';
-import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
+import type { ActionTiming, BrowserColorScheme, CaptureRegion, CaptureResult, ComparisonScenario, ResizeCue, ScenarioAction, ScenarioSetupAction, StaticCaptureResult, Viewport, ZoomCue } from './model';
 import { resolveResizeMode } from './model';
 
 const RESIZE_LEAD_IN_MS = 100;
@@ -43,6 +43,15 @@ export async function captureScenario(
 		await page.goto(initialUrl, { waitUntil: 'networkidle' });
 		const observedColorScheme = await readObservedColorScheme(page);
 		await installCursorOverlay(page);
+		await replaySetupActions(page, baseUrl, scenario.setupActions ?? [], token);
+		await page.evaluate(() => document.querySelector('[data-pr-ui-compare-cursor]')?.remove());
+		await installCursorOverlay(page);
+		const startViewport = page.viewportSize();
+		if (!startViewport) {
+			throw new Error('The browser viewport is unavailable after scenario setup.');
+		}
+		const setupResize = [...scenario.setupActions ?? []].reverse().find(action => action.type === 'resize');
+		const startResizeMode = setupResize?.type === 'resize' ? resolveResizeMode(setupResize) : 'keep-left-edge-fixed';
 		const regionSamples: CaptureRegion[] = [];
 		const resizeCues: ResizeCue[] = [];
 		const zoomCues: ZoomCue[] = [];
@@ -67,6 +76,8 @@ export async function captureScenario(
 			timings,
 			replayOffsetMs,
 			beaconAtMs,
+			startViewport,
+			startResizeMode,
 			recordingSize,
 			resizeCues,
 			zoomCues,
@@ -101,7 +112,19 @@ export async function captureStaticScenario(
 		await installCursorOverlay(page);
 		const resizeCues: ResizeCue[] = [];
 		const zoomCues: ZoomCue[] = [];
-		await replayScenario(page, baseUrl, scenario, undefined, focusPadding, [], resizeCues, zoomCues, 0, outputDirectory, token);
+		await replayScenario(
+			page,
+			baseUrl,
+			{ ...scenario, actions: [...scenario.setupActions ?? [], ...scenario.actions] },
+			undefined,
+			focusPadding,
+			[],
+			resizeCues,
+			zoomCues,
+			0,
+			outputDirectory,
+			token,
+		);
 		let region: CaptureRegion | undefined;
 		if (focusLocator) {
 			await page.locator(focusLocator).waitFor({ state: 'visible' });
@@ -139,8 +162,8 @@ async function launchBrowser(): Promise<Browser> {
 	const allowSystemBrowser = hostConfiguration().allowSystemBrowser();
 	if (!allowSystemBrowser) {
 		throw new Error(
-			'No managed Chromium installation was found. Run "PR UI Compare: Install Managed Chromium" and retry. ' +
-			'System browsers are disabled by default so VS Code does not launch an application from the system Applications folder.\n' +
+			`No managed Chromium installation was found. ${hostConfiguration().browserInstallHint()} ` +
+			'System browsers are disabled by default so no application is launched from the system Applications folder.\n' +
 			failures.join('\n'),
 		);
 	}
@@ -247,6 +270,24 @@ async function replayScenario(
 		});
 	}
 	return timings;
+}
+
+async function replaySetupActions(
+	page: Page,
+	baseUrl: string,
+	actions: ScenarioSetupAction[],
+	token: CancellationToken,
+): Promise<void> {
+	for (const action of actions) {
+		if (token.isCancellationRequested) {
+			throw new CancellationError();
+		}
+		await performAction(page, baseUrl, action);
+		const holdAfterMs = 'holdAfterMs' in action ? action.holdAfterMs : undefined;
+		if (holdAfterMs) {
+			await page.waitForTimeout(holdAfterMs);
+		}
+	}
 }
 
 async function measureFocusRegion(
@@ -422,7 +463,7 @@ async function flashSyncBeacon(page: Page, captureStartedAt: number): Promise<nu
 }
 
 export function getRecordingSize(viewport: Viewport, scenario: ComparisonScenario): Viewport {
-	return scenario.actions.reduce((size, action) => {
+	return [...scenario.setupActions ?? [], ...scenario.actions].reduce((size, action) => {
 		if (action.type !== 'resize') {
 			return size;
 		}
