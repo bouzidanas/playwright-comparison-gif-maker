@@ -5,6 +5,9 @@
 .vscode-test/
 .vscode-test.mjs
 .vscodeignore
+# Editor and agent scratch that lives untracked in the working copy: the tarball is a denylist,
+# so anything not named here ships.
+.codex/
 out/
 src/
 scripts/
@@ -14,6 +17,7 @@ esbuild.js
 eslint.config.mjs
 tsconfig.json
 *.vsix
+*.tgz
 *.map
 dist/extension.js
 assets/*

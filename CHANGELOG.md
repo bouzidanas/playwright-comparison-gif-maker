@@ -4,7 +4,7 @@ All notable changes to the "pr-ui-compare" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.2.0] - 2026-08-22
 
 - MCP results now carry a downscaled still of the finished comparison, so clients that render images show it in the chat instead of only naming a path.
 - An MCP client running inside a VS Code window now opens the extension's preview panel on the finished comparison through a `vscode://bouzidanas.pr-ui-compare/preview` link, giving Claude Code and Codex the same reviewer and export actions the VS Code tool opens. `PR_UI_COMPARE_IDE_PREVIEW` and `PR_UI_COMPARE_URI_SCHEME` control and retarget it.
