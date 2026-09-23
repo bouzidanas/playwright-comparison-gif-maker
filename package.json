@@ -3,7 +3,7 @@
   "displayName": "PR UI Compare",
   "publisher": "bouzidanas",
   "description": "Generate synchronized Before and After UI GIFs and images for pull requests with Playwright.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Anas Bouzid",
   "license": "MIT",
   "icon": "assets/icon.png",
@@ -542,6 +542,6 @@
     "serialize-javascript": "^7.0.6"
   },
   "dependencies": {
-    "playwright-core": "^1.62.1"
+    "playwright-core": "1.62.1"
   }
 }

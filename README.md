@@ -37,6 +37,8 @@ Ask your agent for a comparison gif. The extension starts your app twice, once f
 3. Run **PR UI Compare: Install FFmpeg**, unless FFmpeg is already on PATH or set in `prUiCompare.ffmpegPath`.
 4. Open and trust the workspace you want to record.
 
+Steps 2 and 3 download up to 240 MB: about 196 MB for the browser shell and 43 MB for FFmpeg. Both are skipped when the machine already has them, FFmpeg when it is on PATH and the browser when another project already uses the same Playwright version.
+
 The headless browser shell is stored in Playwright's user cache. Each Playwright version requires a matching browser revision, but the extension does not install the larger headed Chromium build or launch Google Chrome from `/Applications` by default.
 
 FFmpeg is resolved from the `prUiCompare.ffmpegPath` setting first, then from PATH, then from the copy the install command downloads into the extension's global storage. Labels are drawn with the bundled Noto Sans font so output looks the same on every platform.

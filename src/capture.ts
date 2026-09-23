@@ -159,6 +159,15 @@ async function launchBrowser(): Promise<Browser> {
 	} catch (error) {
 		failures.push(`managed Chromium: ${error instanceof Error ? error.message : String(error)}`);
 	}
+	// The headless shell is a separate download of a browser the machine may already have: the full
+	// managed Chromium of the same revision runs headless just as well, with no window and no dock
+	// icon. It is still a Playwright-managed build in the shared cache rather than an installed
+	// application, so it belongs ahead of the system-browser gate.
+	try {
+		return await chromium.launch({ channel: 'chromium', headless: true });
+	} catch (error) {
+		failures.push(`managed Chromium (full build): ${error instanceof Error ? error.message : String(error)}`);
+	}
 	const allowSystemBrowser = hostConfiguration().allowSystemBrowser();
 	if (!allowSystemBrowser) {
 		throw new Error(
