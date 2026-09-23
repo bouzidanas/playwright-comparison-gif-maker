@@ -166,10 +166,10 @@ The same engine runs outside VS Code as an MCP server, so Claude Code, Codex, Cu
 Claude Code:
 
 ```sh
-claude mcp add pr-ui-compare -- npx -y pr-ui-compare
+claude mcp add --scope user pr-ui-compare -- npx -y pr-ui-compare
 ```
 
-Add `--scope project` to write a shared `.mcp.json` at the repository root instead of your own configuration.
+Keep `--scope user`. The server records whichever repository you point it at, so it belongs to you rather than to one project, and user scope makes it available in every repository you open. Leaving the scope out registers it for the current repository only, which looks like the tool is missing everywhere else. Use `--scope project` instead to write a shared `.mcp.json` at the repository root for everyone working on that one repository.
 
 Codex, in `~/.codex/config.toml`:
 
@@ -196,9 +196,13 @@ VS Code, Cursor, and Zed:
 }
 ```
 
+Put that JSON in your user-level configuration rather than a workspace file, for the same reason: a workspace copy only works in that one project.
+
+A client reads its MCP configuration when it starts, so restart it after adding the server.
+
 The server compares the repository at its working directory. Pass `--workspace /path/to/repo`, set `PR_UI_COMPARE_WORKSPACE`, or send `workspacePath` with an individual `create_comparison` call when one server configuration serves several repositories.
 
-Run the `install_browser` and `install_ffmpeg` tools once before the first comparison unless managed Chromium and FFmpeg are already present. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback.
+Run the `install_browser` and `install_ffmpeg` tools once before the first comparison unless managed Chromium and FFmpeg are already present. They download about 240 MB in total, once per machine and not once per repository: the browser goes to Playwright's shared cache and FFmpeg to PR UI Compare storage, so every repository you compare afterwards reuses the same copies. A machine that already has the matching Playwright version downloads no browser at all. Artifacts are written under `~/.pr-ui-compare` and never into the repository; `PR_UI_COMPARE_STORAGE_DIR` overrides the location and `PR_UI_COMPARE_RETENTION_DAYS` controls cleanup (default 7). `PR_UI_COMPARE_FFMPEG` points at a specific FFmpeg build, and `PR_UI_COMPARE_ALLOW_SYSTEM_BROWSER=1` enables the Chrome and Edge fallback.
 
 Every result carries a downscaled still of the comparison, which clients that render images show inline in the chat, alongside the full-resolution paths. When the MCP client runs inside a VS Code window and the extension is installed, the server also asks that window to open the same preview panel the VS Code tool opens, with its review and export actions. Set `PR_UI_COMPARE_IDE_PREVIEW=0` to stop that, `=1` to force it where VS Code is not detected, and `PR_UI_COMPARE_URI_SCHEME` to target a fork, such as `cursor`.
 
