@@ -4,6 +4,13 @@ All notable changes to the "pr-ui-compare" extension will be documented in this 
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.1] - 2026-09-23
+
+- Installing managed Chromium no longer deletes browsers it did not download. Playwright's installer garbage-collects every cached build that no registered installation claims, and the cache is machine-global, so an install could remove browsers belonging to unrelated projects, which then failed with a missing executable and no connection to the tool that caused it.
+- A comparison now runs the full managed Chromium headless when the separate headless shell is missing, instead of requiring a second download of the same Chrome. Nothing visible is launched: no window and no dock icon. System Chrome and Edge remain behind `prUiCompare.allowSystemBrowser`.
+- Pinned `playwright-core` to an exact version. The caret range meant the browser build a user needed depended on the day they installed, so the extension and the MCP server could each demand a different 196MB headless shell and each install could prune the other's build.
+- The setup steps now state what they download, about 240MB in total, and when a machine already has it.
+
 ## [0.2.0] - 2026-08-22
 
 - MCP results now carry a downscaled still of the finished comparison, so clients that render images show it in the chat instead of only naming a path.
