@@ -9,7 +9,10 @@ export async function installManagedChromium(
 	const playwrightCli = path.join(path.dirname(require.resolve('playwright-core')), 'cli.js');
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(process.execPath, [playwrightCli, 'install', '--only-shell', 'chromium'], {
-			env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+			// Playwright's installer deletes every cached build no live installation claims, which on a
+			// machine that uses Playwright for anything else means deleting browsers this tool never
+			// downloaded. Keep the install additive: it may add a build, never remove one.
+			env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PLAYWRIGHT_SKIP_BROWSER_GC: '1' },
 			windowsHide: true,
 		});
 		child.stdout.on('data', data => output.append(String(data)));
